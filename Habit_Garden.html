@@ -396,25 +396,7 @@
   }
 
   .task-check {
-    width: 26px;
-    height: 26px;
-    border: 2.5px solid var(--moss);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    flex-shrink: 0;
-    transition: all 0.2s;
-  }
-  .task.done .task-check {
-    background: var(--moss);
-  }
-  .task.done .task-check::after {
-    content: '✓';
-    color: white;
-    font-weight: bold;
-    font-size: 16px;
+    display: none;
   }
 
   .task-body { flex: 1; min-width: 0; }
@@ -496,7 +478,6 @@
     display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;
   }
   .task.started { background: linear-gradient(90deg, rgba(243, 211, 136, 0.25), rgba(243, 211, 136, 0.08)); }
-  .task.started .task-check::after { content: '▸'; color: #a07628; font-weight: 700; }
 
   .add-task-btn {
     width: 100%;
@@ -1113,7 +1094,7 @@
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <button id="langToggle" onclick="toggleLang()" style="background: var(--cream-2); border: 2px solid var(--ink); border-radius: 16px; padding: 6px 14px; font-family: inherit; font-size: 13px; cursor: pointer; color: var(--ink); box-shadow: 2px 2px 0 var(--ink);">中 / EN</button>
       <div class="date-badge" id="dateBadge"></div>
-      <div class="user-badge">
+      <div class="user-badge" onclick="window._forceSync && window._forceSync()" title="点击强制同步" style="cursor:pointer;">
         <div class="sync-indicator" id="syncDot"></div>
         <span id="userEmail"></span>
       </div>
@@ -1552,13 +1533,17 @@ function save() {
 }
 
 function load() {
-  // First, pull from localStorage as an instant/offline fallback.
+  // If Firebase already populated state from the cloud, don't overwrite it
+  // with stale localStorage data. localStorage is only used as an offline
+  // fallback when Firebase isn't available.
+  if (window._cloudLoaded) {
+    handleDayRoll();
+    return;
+  }
   const raw = localStorage.getItem(LS_KEY);
   if (raw) {
     try { state = { ...state, ...JSON.parse(raw) }; } catch(e) {}
   }
-  // Firestore data (when available) will be merged in by _loadFromFirestore()
-  // which is called from onAuthStateChanged before seedDefaults/renderAll run.
   handleDayRoll();
 }
 
@@ -2740,7 +2725,6 @@ function renderTasks() {
     }
     return `
       <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''}">
-        <div class="task-check"></div>
         <div class="task-body">
           <div class="task-name">${escapeHtml(task.name)}</div>
           <div class="task-meta">
@@ -3699,25 +3683,37 @@ async function loadFromFirestore() {
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const data = snap.data();
-      // Merge cloud data into the app's state object (which is a `let` inside
-      // the main script). We expose it as window.state there; the original
-      // file's `let state` is accessible via window because it's at the top
-      // level of a classic <script>.
+      // Replace state wholesale with cloud data (merged with defaults so any
+      // newly-added fields in the app keep their default shape). We do NOT
+      // merge with the current window.state here, because window.state may
+      // contain stale data from localStorage that would "fight" the cloud.
       window.state = { ...window.state, ...data };
+      window._cloudLoaded = true;
+      // Also update localStorage so offline reload shows the latest cloud data.
+      try { localStorage.setItem('habit_garden_v1', JSON.stringify(window.state)); } catch(e) {}
+    } else {
+      // First time sign-in with no cloud doc yet. If there's local data from
+      // a previous offline session, seed the cloud with it on next save().
+      window._cloudLoaded = true; // we're "authoritative" now
     }
     setSyncStatus('ok');
-  } catch(e) { setSyncStatus('error'); console.error(e); }
+  } catch(e) { setSyncStatus('error'); console.error('[firestore] load failed:', e); }
 }
 
 function subscribeToChanges() {
   if (!currentUser) return;
   const docRef = doc(db, 'users', currentUser.uid);
-  unsubscribeSnapshot = onSnapshot(docRef, snap => {
-    if (snap.exists() && !window._cloudSaveTimer) {
-      // Only apply remote updates when we're not about to overwrite them
-      // with a pending local save. Prevents fighting between tabs.
+  unsubscribeSnapshot = onSnapshot(docRef, { includeMetadataChanges: false }, snap => {
+    // Skip snapshots that were triggered by our own local write — otherwise
+    // we'd overwrite pending user edits made in the 1.5s debounce window.
+    if (snap.metadata.hasPendingWrites) return;
+    // Also skip if we're about to flush a local change — don't let a remote
+    // echo undo it.
+    if (window._cloudSaveTimer) return;
+    if (snap.exists()) {
       const data = snap.data();
       window.state = { ...window.state, ...data };
+      try { localStorage.setItem('habit_garden_v1', JSON.stringify(window.state)); } catch(e) {}
       if (typeof window.renderAll === 'function') window.renderAll();
     }
   });
@@ -3730,7 +3726,27 @@ window._saveToFirestore = async function() {
     const docRef = doc(db, 'users', currentUser.uid);
     await setDoc(docRef, window.state, { merge: true });
     setSyncStatus('ok');
-  } catch(e) { setSyncStatus('error'); console.error(e); }
+  } catch(e) { setSyncStatus('error'); console.error('[firestore] save failed:', e); }
+};
+
+/* Force-pull the latest cloud state. Bound to clicking the user badge.
+   Useful when you've just made changes on another device and want the
+   current one to pick them up without a full page reload. */
+window._forceSync = async function() {
+  if (!currentUser) {
+    console.warn('[sync] not signed in, nothing to sync');
+    return;
+  }
+  // Cancel any pending local save so we don't clobber remote changes.
+  if (window._cloudSaveTimer) {
+    clearTimeout(window._cloudSaveTimer);
+    window._cloudSaveTimer = null;
+  }
+  await loadFromFirestore();
+  if (typeof window.renderAll === 'function') window.renderAll();
+  if (typeof window.toast === 'function') {
+    window.toast('已从云端刷新 🔄', '☁️');
+  }
 };
 </script>
 
