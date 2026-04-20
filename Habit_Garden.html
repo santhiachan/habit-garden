@@ -1044,6 +1044,28 @@
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
   .signout-btn{background:transparent;border:2px solid var(--cream-2);border-radius:16px;padding:6px 14px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink-soft);}
   .signout-btn:hover{border-color:var(--peach);color:var(--peach-deep);}
+
+  /* ── TASK ROW LAYOUT FIX ──
+     Keep the task name readable by giving .task-body a real minimum width.
+     With the default `min-width: 0`, narrow screens squeeze the name down to
+     one character per line (vertical text stacking in Chinese).
+     On phones, move the action buttons onto their own row below the task
+     body so the task name gets the full width. */
+  .task-body { min-width: 120px; }
+  @media (max-width: 600px) {
+    .task {
+      flex-wrap: wrap;
+      row-gap: 10px;
+    }
+    .task-body {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+    .task-actions {
+      flex: 1 1 100%;
+      justify-content: flex-start;
+    }
+  }
 </style>
 
 </head>
