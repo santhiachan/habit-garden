@@ -258,8 +258,14 @@ body{font-family:'LXGW WenKai TC','Fraunces',serif;background:var(--cream);color
           <div class="pet-ground"></div>
           <div class="pet-svg" id="petSvg"></div>
         </div>
+        <div id="speciesBadge" style="text-align:center;margin-top:4px;font-size:12px;color:var(--ink-soft);min-height:16px;"></div>
         <div class="pet-mood" id="petMood"></div>
-        <div style="text-align:center;margin-top:10px;">
+        <div id="blindBoxArea" style="display:none;text-align:center;margin-top:10px;">
+          <button onclick="openBlindBox()" style="background:linear-gradient(135deg,#e8b896,#c9584a);color:#fff;border:none;border-radius:999px;padding:10px 22px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 0 #8e3a30;">🎁 拆开种子盲盒</button>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">🫛 毛豆 · 🌹 玫瑰 · 🍅 番茄 · 🌵 仙人掌 · 🌿 龟背竹</div>
+        </div>
+        <div id="harvestBar" style="display:none;text-align:center;margin-top:8px;font-size:13px;color:var(--peach-deep);"></div>
+        <div id="patArea" style="text-align:center;margin-top:10px;">
           <button class="pat-btn" onclick="patPet()">🫶 摸摸它</button>
           <div class="pat-feedback" id="patFeedback"></div>
         </div>
@@ -633,12 +639,25 @@ function setSyncStatus(status) {
 // ── APP STATE ──
 const todayStr = () => new Date().toISOString().slice(0,10);
 let state = {
-  pet: { name: '毛豆', xp: 0, stage: 0 },
+  pet: { name: '小种子', xp: 0, stage: 0, species: null, harvest: [], lastHarvestXp: 0, lastHarvestDate: null },
   stars: 0, streak: 0, lastActiveDate: null, lastCompletionDate: null,
   dims: { career: 0, charm: 0, wealth: 0, wisdom: 0, health: 0 },
   tasks: [], completions: {}, shopItems: [], shopPurchases: {},
-  sleep: {}, journal: [], rewardLog: {}
+  sleep: {}, journal: [], rewardLog: {},
+  settings: { seedOpened: false },
+  partialStarts: {}
 };
+
+function ensurePetFields() {
+  if (!state.pet) state.pet = { name:'小种子', xp:0, stage:0 };
+  if (!('species' in state.pet)) state.pet.species = null;
+  if (!Array.isArray(state.pet.harvest)) state.pet.harvest = [];
+  if (!('lastHarvestXp' in state.pet)) state.pet.lastHarvestXp = 0;
+  if (!('lastHarvestDate' in state.pet)) state.pet.lastHarvestDate = null;
+  if (!state.settings) state.settings = { seedOpened: false };
+  if (!('seedOpened' in state.settings)) state.settings.seedOpened = !!state.pet.species;
+  if (!state.partialStarts) state.partialStarts = {};
+}
 
 function handleDayRoll() {
   const t = todayStr();
@@ -674,91 +693,316 @@ function seedDefaults() {
 
 function uid() { return Math.random().toString(36).slice(2,10); }
 
-// ── PET ──
+// ── PET: species + 5 stages ──
 const PET_STAGES = [
-  { name: '小种子', minXp: 0 }, { name: '萌芽期', minXp: 50 },
-  { name: '小芽豆', minXp: 150 }, { name: '青青豆', minXp: 400 },
-  { name: '圆滚豆', minXp: 800 }, { name: '星辰豆', minXp: 1500 },
+  { minXp: 0 },     // 0: seed
+  { minXp: 50 },    // 1: sprout
+  { minXp: 200 },   // 2: young
+  { minXp: 500 },   // 3: bushy / bud
+  { minXp: 1000 },  // 4: mature / bloom
 ];
+const MAX_STAGE = PET_STAGES.length - 1;
+const HARVEST_STEP = 100; // every +100xp past max grows one extra harvest
+
+const SPECIES = {
+  edamame:  { zhName:'毛豆',   enName:'Edamame',  emoji:'🫛', harvestZh:'豆荚',  harvestEn:'pod',    harvestEmoji:'🫛' },
+  rose:     { zhName:'玫瑰',   enName:'Rose',     emoji:'🌹', harvestZh:'玫瑰花',harvestEn:'rose',   harvestEmoji:'🌹' },
+  tomato:   { zhName:'番茄',   enName:'Tomato',   emoji:'🍅', harvestZh:'番茄',  harvestEn:'tomato', harvestEmoji:'🍅' },
+  cactus:   { zhName:'仙人掌', enName:'Cactus',   emoji:'🌵', harvestZh:'花苞',  harvestEn:'bloom',  harvestEmoji:'🌸' },
+  monstera: { zhName:'龟背竹', enName:'Monstera', emoji:'🌿', harvestZh:'新叶',  harvestEn:'leaf',   harvestEmoji:'🌿' },
+};
+const SPECIES_KEYS = Object.keys(SPECIES);
+const STAGE_NAMES_ZH = ['小种子','萌芽','小小苗','茁壮苗','成熟期'];
+const STAGE_NAMES_EN = ['Seed','Sprout','Young','Bushy','Mature'];
+
+function getSpecies() { return (state.pet && state.pet.species) || 'edamame'; }
+function speciesInfo() { return SPECIES[getSpecies()]; }
+function getPetStageName(idx) { return STAGE_NAMES_ZH[idx] || STAGE_NAMES_ZH[MAX_STAGE]; }
 
 function getPetStage() {
+  ensurePetFields();
   let idx = 0;
-  PET_STAGES.forEach((s, i) => { if (state.pet.xp >= s.minXp) idx = i; });
+  PET_STAGES.forEach((s, i) => { if (state.pet.xp >= s.minXp) idx = Math.min(i, MAX_STAGE); });
   return idx;
 }
 
-function getPetSvg(stageIdx) {
+function harvestStart() { return PET_STAGES[MAX_STAGE].minXp; }
+
+// Keep harvest array length in sync with current xp (call after xp changes)
+function syncHarvestAfterXpChange() {
+  ensurePetFields();
+  const xp = state.pet.xp;
+  const extras = Math.max(0, Math.floor((xp - harvestStart()) / HARVEST_STEP));
+  const cur = state.pet.harvest.length;
+  if (extras > cur) {
+    const sp = speciesInfo();
+    for (let i = cur; i < extras; i++) state.pet.harvest.push({ emoji: sp.harvestEmoji, at: Date.now() });
+  } else if (extras < cur) {
+    state.pet.harvest.length = extras;
+  }
+}
+
+// Blind-box: first-time species reveal
+window.openBlindBox = function() {
+  ensurePetFields();
+  if (state.settings.seedOpened) return;
+  const species = SPECIES_KEYS[Math.floor(Math.random() * SPECIES_KEYS.length)];
+  state.pet.species = species;
+  state.settings.seedOpened = true;
+  const info = SPECIES[species];
+  // Default pet name to species name if still "小种子" or "毛豆" default
+  if (!state.pet.name || state.pet.name === '小种子' || state.pet.name === '毛豆') {
+    state.pet.name = info.zhName;
+  }
+  save(); renderAll();
+  setTimeout(() => toast(`🎉 种子开出：${info.emoji} ${info.zhName}！给它起个名字吧~`, '🎁'), 100);
+};
+
+// Next-day harvest drop-off: convert accumulated harvest to stars, reset xp to stage-4 floor
+function maybeHarvestDropOff() {
+  ensurePetFields();
+  const t = todayStr();
+  const n = state.pet.harvest.length;
+  if (n > 0 && state.pet.lastHarvestDate !== t && state.pet.xp >= harvestStart() + HARVEST_STEP) {
+    const info = speciesInfo();
+    const starsEarned = n * 100;
+    state.stars += starsEarned;
+    state.pet.xp = harvestStart(); // back to stage-4 floor to grow again
+    state.pet.harvest = [];
+    state.pet.lastHarvestDate = t;
+    setTimeout(() => toast(`🌟 ${info.harvestEmoji} 今日收获 ${n} 个${info.harvestZh}！+${starsEarned}✨`, '🎊'), 600);
+    save();
+  }
+}
+
+function getPetSvg(stageIdx, mood) {
+  ensurePetFields();
   const W = 200, H = 220;
+  const boxOpen = !!state.settings.seedOpened;
   const pot = `<path d="M 55 185 L 65 215 L 135 215 L 145 185 Z" fill="#c78a5a" stroke="#a66d42" stroke-width="2"/>
     <rect x="51" y="177" width="98" height="12" rx="3" fill="#a66d42"/>
     <ellipse cx="100" cy="185" rx="40" ry="5" fill="#8a5835" opacity="0.5"/>`;
   const soil = stageIdx >= 1 ? `<ellipse cx="100" cy="182" rx="36" ry="4" fill="#6b4a2e"/>` : '';
-  const mood = getPetMood();
-  const mouthD = mood === 'sad' ? 'M 93 148 Q 100 144 107 148' : mood === 'neutral' ? 'M 93 150 L 107 150' : 'M 91 146 Q 100 154 109 146';
-  const eyeR = mood === 'sad' ? 1.8 : 2.2;
-  let body = '';
-  if (stageIdx === 0) {
-    body = `<ellipse cx="100" cy="178" rx="20" ry="15" fill="#c7b186" stroke="#a68663" stroke-width="2"/>
-      <circle cx="93" cy="172" r="${eyeR}" fill="#3d3527"/>
-      <circle cx="107" cy="172" r="${eyeR}" fill="#3d3527"/>
-      <path d="${mouthD.replace(/148|144|150|146|154/g,m=>({148:'175',144:'171',150:'177',146:'173',154:'181'})[m]||m)}" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-  } else if (stageIdx === 1) {
-    body = `<path d="M 100 180 Q 98 165 100 155" stroke="#7a9b6e" stroke-width="2.5" fill="none"/>
-      <path d="M 100 162 Q 88 154 82 162 Q 91 164 100 163" fill="#9ac670" stroke="#5a8a55" stroke-width="1"/>
-      <path d="M 100 162 Q 112 154 118 162 Q 109 164 100 163" fill="#b4d68a" stroke="#5a8a55" stroke-width="1"/>
-      <ellipse cx="100" cy="154" rx="10" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>
-      <circle cx="93" cy="151" r="${eyeR}" fill="#3d3527"/>
-      <circle cx="107" cy="151" r="${eyeR}" fill="#3d3527"/>
-      <path d="${mouthD}" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-  } else if (stageIdx === 2) {
-    body = `<path d="M 100 180 Q 98 150 100 130" stroke="#7a9b6e" stroke-width="3" fill="none"/>
-      <ellipse cx="84" cy="155" rx="14" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-25 84 155)"/>
-      <ellipse cx="116" cy="155" rx="14" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(25 116 155)"/>
-      <ellipse cx="100" cy="130" rx="16" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>
-      <circle cx="93" cy="127" r="${eyeR}" fill="#3d3527"/>
-      <circle cx="107" cy="127" r="${eyeR}" fill="#3d3527"/>
-      <path d="M 91 134 Q 100 140 109 134" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-  } else if (stageIdx === 3) {
-    body = `<path d="M 100 180 Q 98 140 100 110" stroke="#7a9b6e" stroke-width="3.5" fill="none"/>
-      <ellipse cx="78" cy="155" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-28 78 155)"/>
-      <ellipse cx="122" cy="155" rx="16" ry="9" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(28 122 155)"/>
-      <ellipse cx="82" cy="135" rx="15" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-15 82 135)"/>
-      <ellipse cx="118" cy="135" rx="15" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(15 118 135)"/>
-      <ellipse cx="100" cy="110" rx="16" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>
-      <circle cx="93" cy="107" r="${eyeR}" fill="#3d3527"/>
-      <circle cx="107" cy="107" r="${eyeR}" fill="#3d3527"/>
-      <path d="M 91 114 Q 100 120 109 114" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-  } else if (stageIdx === 4) {
-    body = `<path d="M 100 180 Q 98 135 100 100" stroke="#7a9b6e" stroke-width="3.5" fill="none"/>
-      <ellipse cx="74" cy="155" rx="18" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-30 74 155)"/>
-      <ellipse cx="126" cy="155" rx="18" ry="10" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(30 126 155)"/>
-      <ellipse cx="78" cy="130" rx="16" ry="9" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-18 78 130)"/>
-      <ellipse cx="122" cy="130" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(18 122 130)"/>
-      <ellipse cx="100" cy="100" rx="18" ry="11" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>
-      <circle cx="100" cy="92" r="5" fill="#fff4e0" stroke="#e8c98a" stroke-width="1"/>
-      <circle cx="93" cy="97" r="${eyeR}" fill="#3d3527"/>
-      <circle cx="107" cy="97" r="${eyeR}" fill="#3d3527"/>
-      <path d="M 91 104 Q 100 110 109 104" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
-  } else {
-    body = `<path d="M 100 180 Q 98 130 100 88" stroke="#7a9b6e" stroke-width="3.5" fill="none"/>
-      <ellipse cx="68" cy="152" rx="20" ry="11" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-32 68 152)"/>
-      <ellipse cx="132" cy="152" rx="20" ry="11" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(32 132 152)"/>
-      <ellipse cx="74" cy="126" rx="18" ry="10" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-20 74 126)"/>
-      <ellipse cx="126" cy="126" rx="18" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(20 126 126)"/>
-      <ellipse cx="100" cy="95" rx="20" ry="12" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>
-      <ellipse cx="88" cy="88" rx="10" ry="7" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(-20 88 88)"/>
-      <ellipse cx="112" cy="88" rx="10" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(20 112 88)"/>
-      <ellipse cx="100" cy="80" rx="12" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>
-      <g transform="translate(100 80)"><ellipse cx="0" cy="0" rx="10" ry="5" fill="#9ac670" stroke="#5a8a55" stroke-width="1"/><circle cx="-4" cy="0" r="2.8" fill="#c6e19a"/><circle cx="0" cy="0" r="2.8" fill="#c6e19a"/><circle cx="4" cy="0" r="2.8" fill="#c6e19a"/></g>
-      <text x="125" y="78" font-size="16">✨</text>
-      <text x="60" y="90" font-size="14">⭐</text>
-      <circle cx="93" cy="92" r="${eyeR}" fill="#3d3527"/>
-      <circle cx="107" cy="92" r="${eyeR}" fill="#3d3527"/>
-      <path d="M 91 99 Q 100 106 109 99" stroke="#3d3527" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-      <circle cx="84" cy="97" r="2.5" fill="#f2a78d" opacity="0.6"/>
-      <circle cx="116" cy="97" r="2.5" fill="#f2a78d" opacity="0.6"/>`;
+
+  // Before blind box opened: show wrapped gift box on the soil
+  if (!boxOpen) {
+    const gift = `
+      <rect x="70" y="140" width="60" height="46" rx="4" fill="#e8a08c" stroke="#c47a6b" stroke-width="2"/>
+      <rect x="70" y="155" width="60" height="8" fill="#c4584a"/>
+      <rect x="96" y="140" width="8" height="46" fill="#c4584a"/>
+      <path d="M 100 140 Q 85 125 92 120 Q 100 118 100 135 Q 100 118 108 120 Q 115 125 100 140 Z" fill="#c4584a" stroke="#a13a30" stroke-width="1.5"/>
+      <text x="60" y="125" font-size="18">✨</text>
+      <text x="135" y="135" font-size="14">✦</text>
+      <text x="145" y="165" font-size="16">✨</text>`;
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${pot}${soil}${gift}</svg>`;
   }
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${pot}${soil}${body}</svg>`;
+
+  const sp = getSpecies();
+  const eyeR = mood === 'sad' ? 1.8 : 2.2;
+  const smile = (cx, cy) => mood === 'sad'
+    ? `<path d="M ${cx-7} ${cy+3} Q ${cx} ${cy-1} ${cx+7} ${cy+3}" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`
+    : mood === 'neutral'
+      ? `<path d="M ${cx-7} ${cy+3} L ${cx+7} ${cy+3}" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`
+      : `<path d="M ${cx-8} ${cy} Q ${cx} ${cy+8} ${cx+8} ${cy}" stroke="#3d3527" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  const face = (cx, cy) => `<circle cx="${cx-6}" cy="${cy-3}" r="${eyeR}" fill="#3d3527"/>
+    <circle cx="${cx+6}" cy="${cy-3}" r="${eyeR}" fill="#3d3527"/>${smile(cx, cy+4)}`;
+
+  let body = '';
+
+  if (sp === 'edamame') {
+    if (stageIdx === 0) {
+      body = `<ellipse cx="100" cy="178" rx="20" ry="15" fill="#c7b186" stroke="#a68663" stroke-width="2"/>${face(100, 175)}`;
+    } else if (stageIdx === 1) {
+      body = `<path d="M 100 180 Q 98 165 100 155" stroke="#7a9b6e" stroke-width="2.5" fill="none"/>
+        <path d="M 100 162 Q 88 154 82 162 Q 91 164 100 163" fill="#9ac670" stroke="#5a8a55" stroke-width="1"/>
+        <path d="M 100 162 Q 112 154 118 162 Q 109 164 100 163" fill="#b4d68a" stroke="#5a8a55" stroke-width="1"/>
+        <ellipse cx="100" cy="154" rx="10" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>${face(100, 154)}`;
+    } else if (stageIdx === 2) {
+      body = `<path d="M 100 180 Q 98 150 100 130" stroke="#7a9b6e" stroke-width="3" fill="none"/>
+        <ellipse cx="84" cy="155" rx="14" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-25 84 155)"/>
+        <ellipse cx="116" cy="155" rx="14" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(25 116 155)"/>
+        <ellipse cx="100" cy="130" rx="16" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>${face(100, 130)}`;
+    } else if (stageIdx === 3) {
+      body = `<path d="M 100 180 Q 98 140 100 110" stroke="#7a9b6e" stroke-width="3.5" fill="none"/>
+        <ellipse cx="78" cy="155" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-28 78 155)"/>
+        <ellipse cx="122" cy="155" rx="16" ry="9" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(28 122 155)"/>
+        <ellipse cx="82" cy="135" rx="15" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-15 82 135)"/>
+        <ellipse cx="118" cy="135" rx="15" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(15 118 135)"/>
+        <ellipse cx="100" cy="110" rx="16" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2"/>${face(100, 110)}`;
+    } else {
+      body = `<path d="M 100 180 Q 98 130 100 95" stroke="#7a9b6e" stroke-width="3.5" fill="none"/>
+        <ellipse cx="74" cy="152" rx="18" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-30 74 152)"/>
+        <ellipse cx="126" cy="152" rx="18" ry="10" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(30 126 152)"/>
+        <ellipse cx="78" cy="128" rx="16" ry="9" fill="#b4d68a" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-18 78 128)"/>
+        <ellipse cx="122" cy="128" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(18 122 128)"/>
+        <ellipse cx="100" cy="95" rx="22" ry="10" fill="#9ac670" stroke="#5a8a55" stroke-width="1.5"/>
+        <circle cx="88" cy="95" r="5" fill="#c6e19a"/>
+        <circle cx="100" cy="95" r="5" fill="#c6e19a"/>
+        <circle cx="112" cy="95" r="5" fill="#c6e19a"/>${face(100, 105)}`;
+    }
+  } else if (sp === 'rose') {
+    if (stageIdx === 0) {
+      body = `<ellipse cx="100" cy="178" rx="18" ry="13" fill="#d9b88a" stroke="#a88558" stroke-width="2"/>${face(100, 175)}`;
+    } else if (stageIdx === 1) {
+      body = `<path d="M 100 180 Q 100 165 100 155" stroke="#6a7d4a" stroke-width="2.5"/>
+        <ellipse cx="88" cy="160" rx="10" ry="6" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(-30 88 160)"/>
+        <ellipse cx="112" cy="160" rx="10" ry="6" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(30 112 160)"/>
+        <ellipse cx="100" cy="152" rx="8" ry="10" fill="#c4e09e" stroke="#5a8a55" stroke-width="1"/>${face(100, 152)}`;
+    } else if (stageIdx === 2) {
+      body = `<path d="M 100 180 Q 100 150 100 128" stroke="#6a7d4a" stroke-width="3"/>
+        <path d="M 100 170 L 92 164 M 100 150 L 108 144" stroke="#3d3527" stroke-width="1"/>
+        <ellipse cx="82" cy="155" rx="12" ry="7" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(-30 82 155)"/>
+        <ellipse cx="118" cy="155" rx="12" ry="7" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(30 118 155)"/>
+        <ellipse cx="100" cy="128" rx="10" ry="12" fill="#b5d884" stroke="#5a8a55" stroke-width="1"/>${face(100, 128)}`;
+    } else if (stageIdx === 3) {
+      body = `<path d="M 100 180 Q 100 140 100 108" stroke="#6a7d4a" stroke-width="3"/>
+        <ellipse cx="80" cy="150" rx="14" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(-30 80 150)"/>
+        <ellipse cx="120" cy="150" rx="14" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(30 120 150)"/>
+        <ellipse cx="82" cy="128" rx="13" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(-18 82 128)"/>
+        <ellipse cx="118" cy="128" rx="13" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(18 118 128)"/>
+        <path d="M 100 115 Q 88 108 92 98 Q 100 90 108 98 Q 112 108 100 115 Z" fill="#e25a6b" stroke="#9e3040" stroke-width="1.2"/>${face(100, 108)}`;
+    } else {
+      body = `<path d="M 100 180 Q 100 135 100 92" stroke="#6a7d4a" stroke-width="3"/>
+        <ellipse cx="76" cy="150" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-30 76 150)"/>
+        <ellipse cx="124" cy="150" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(30 124 150)"/>
+        <ellipse cx="80" cy="125" rx="14" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(-18 80 125)"/>
+        <ellipse cx="120" cy="125" rx="14" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(18 120 125)"/>
+        <circle cx="100" cy="92" r="16" fill="#e25a6b" stroke="#9e3040" stroke-width="1.5"/>
+        <circle cx="100" cy="92" r="11" fill="#ef7889" stroke="#c44558" stroke-width="1"/>
+        <circle cx="100" cy="92" r="6" fill="#ffb0bb"/>
+        <path d="M 100 78 Q 90 82 94 92 M 100 78 Q 110 82 106 92" stroke="#9e3040" stroke-width="1" fill="none" opacity="0.4"/>${face(100, 100)}`;
+    }
+  } else if (sp === 'tomato') {
+    if (stageIdx === 0) {
+      body = `<ellipse cx="100" cy="178" rx="18" ry="13" fill="#d4a372" stroke="#a17a4c" stroke-width="2"/>${face(100, 175)}`;
+    } else if (stageIdx === 1) {
+      body = `<path d="M 100 180 Q 100 165 100 152" stroke="#6a8a4a" stroke-width="2.5"/>
+        <path d="M 92 158 Q 82 152 86 162 Q 94 164 92 158 Z" fill="#9ac670" stroke="#5a8a55" stroke-width="1"/>
+        <path d="M 108 158 Q 118 152 114 162 Q 106 164 108 158 Z" fill="#9ac670" stroke="#5a8a55" stroke-width="1"/>
+        <ellipse cx="100" cy="150" rx="9" ry="7" fill="#b5d884" stroke="#5a8a55" stroke-width="1"/>${face(100, 150)}`;
+    } else if (stageIdx === 2) {
+      body = `<path d="M 100 180 Q 100 148 100 125" stroke="#6a8a4a" stroke-width="3"/>
+        <ellipse cx="82" cy="156" rx="13" ry="7" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(-30 82 156)"/>
+        <ellipse cx="118" cy="156" rx="13" ry="7" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(30 118 156)"/>
+        <ellipse cx="82" cy="135" rx="12" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(-18 82 135)"/>
+        <ellipse cx="118" cy="135" rx="12" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(18 118 135)"/>
+        <ellipse cx="100" cy="125" rx="11" ry="9" fill="#b5d884" stroke="#5a8a55" stroke-width="1"/>${face(100, 125)}`;
+    } else if (stageIdx === 3) {
+      body = `<path d="M 100 180 Q 100 140 100 110" stroke="#6a8a4a" stroke-width="3"/>
+        <ellipse cx="78" cy="152" rx="15" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(-30 78 152)"/>
+        <ellipse cx="122" cy="152" rx="15" ry="8" fill="#9ac670" stroke="#5a8a55" stroke-width="1" transform="rotate(30 122 152)"/>
+        <ellipse cx="80" cy="128" rx="13" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(-18 80 128)"/>
+        <ellipse cx="120" cy="128" rx="13" ry="7" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(18 120 128)"/>
+        <circle cx="84" cy="115" r="5" fill="#ffe078" stroke="#d8a93a" stroke-width="0.8"/>
+        <circle cx="116" cy="115" r="5" fill="#ffe078" stroke="#d8a93a" stroke-width="0.8"/>
+        <ellipse cx="100" cy="108" rx="12" ry="10" fill="#b5d884" stroke="#5a8a55" stroke-width="1"/>${face(100, 108)}`;
+    } else {
+      body = `<path d="M 100 180 Q 100 135 100 95" stroke="#6a8a4a" stroke-width="3"/>
+        <ellipse cx="76" cy="150" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(-30 76 150)"/>
+        <ellipse cx="124" cy="150" rx="16" ry="9" fill="#9ac670" stroke="#5a8a55" stroke-width="1.2" transform="rotate(30 124 150)"/>
+        <ellipse cx="80" cy="125" rx="14" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(-18 80 125)"/>
+        <ellipse cx="120" cy="125" rx="14" ry="8" fill="#b4d68a" stroke="#5a8a55" stroke-width="1" transform="rotate(18 120 125)"/>
+        <circle cx="82" cy="110" r="8" fill="#e8503a" stroke="#a12e20" stroke-width="1"/>
+        <path d="M 82 104 L 80 100 L 82 102 L 84 100 L 82 104 Z" fill="#5a8a55"/>
+        <circle cx="118" cy="110" r="8" fill="#e8503a" stroke="#a12e20" stroke-width="1"/>
+        <path d="M 118 104 L 116 100 L 118 102 L 120 100 L 118 104 Z" fill="#5a8a55"/>
+        <circle cx="100" cy="95" r="10" fill="#e8503a" stroke="#a12e20" stroke-width="1.2"/>
+        <path d="M 100 86 L 96 82 L 100 84 L 104 82 L 100 86 Z" fill="#5a8a55"/>${face(100, 103)}`;
+    }
+  } else if (sp === 'cactus') {
+    if (stageIdx === 0) {
+      body = `<ellipse cx="100" cy="178" rx="18" ry="13" fill="#a89860" stroke="#786840" stroke-width="2"/>${face(100, 175)}`;
+    } else if (stageIdx === 1) {
+      body = `<ellipse cx="100" cy="165" rx="10" ry="14" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <line x1="100" y1="155" x2="100" y2="150" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="92" y1="165" x2="88" y2="163" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="108" y1="165" x2="112" y2="163" stroke="#4a7b3e" stroke-width="0.8"/>${face(100, 163)}`;
+    } else if (stageIdx === 2) {
+      body = `<ellipse cx="100" cy="155" rx="14" ry="22" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <path d="M 100 138 Q 100 148 100 170" stroke="#4a7b3e" stroke-width="0.6" fill="none"/>
+        <line x1="92" y1="145" x2="88" y2="143" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="108" y1="145" x2="112" y2="143" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="92" y1="160" x2="88" y2="158" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="108" y1="160" x2="112" y2="158" stroke="#4a7b3e" stroke-width="0.8"/>${face(100, 155)}`;
+    } else if (stageIdx === 3) {
+      body = `<ellipse cx="100" cy="140" rx="16" ry="28" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <ellipse cx="78" cy="150" rx="8" ry="14" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <path d="M 78 140 Q 78 142 84 138 Q 84 134 88 138" stroke="#4a7b3e" stroke-width="1.2" fill="none"/>
+        <path d="M 100 115 Q 100 130 100 165" stroke="#4a7b3e" stroke-width="0.6" fill="none"/>
+        <line x1="91" y1="130" x2="86" y2="128" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="109" y1="130" x2="114" y2="128" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="91" y1="150" x2="86" y2="148" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="109" y1="150" x2="114" y2="148" stroke="#4a7b3e" stroke-width="0.8"/>${face(100, 140)}`;
+    } else {
+      body = `<ellipse cx="100" cy="135" rx="17" ry="32" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <ellipse cx="76" cy="148" rx="9" ry="16" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <ellipse cx="124" cy="152" rx="9" ry="14" fill="#7cb567" stroke="#4a7b3e" stroke-width="1.5"/>
+        <path d="M 76 136 Q 76 138 82 134 Q 82 130 86 134" stroke="#4a7b3e" stroke-width="1.2" fill="none"/>
+        <path d="M 124 140 Q 124 142 118 138" stroke="#4a7b3e" stroke-width="1.2" fill="none"/>
+        <circle cx="100" cy="102" r="9" fill="#f6a4bf" stroke="#c26b8a" stroke-width="1"/>
+        <circle cx="100" cy="102" r="5" fill="#ffd4e0"/>
+        <circle cx="100" cy="102" r="2" fill="#ffee88"/>
+        <path d="M 100 92 Q 92 96 94 102 M 100 92 Q 108 96 106 102" stroke="#c26b8a" stroke-width="1" fill="none" opacity="0.4"/>
+        <line x1="90" y1="125" x2="85" y2="123" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="110" y1="125" x2="115" y2="123" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="90" y1="145" x2="85" y2="143" stroke="#4a7b3e" stroke-width="0.8"/>
+        <line x1="110" y1="145" x2="115" y2="143" stroke="#4a7b3e" stroke-width="0.8"/>${face(100, 130)}`;
+    }
+  } else { // monstera
+    if (stageIdx === 0) {
+      body = `<ellipse cx="100" cy="178" rx="18" ry="13" fill="#a8b878" stroke="#788850" stroke-width="2"/>${face(100, 175)}`;
+    } else if (stageIdx === 1) {
+      body = `<path d="M 100 180 Q 100 168 100 158" stroke="#5a8a4a" stroke-width="2.5"/>
+        <path d="M 100 155 Q 85 150 82 162 Q 92 166 100 160 Z" fill="#7ab56a" stroke="#4a7a3e" stroke-width="1.2"/>
+        <path d="M 100 150 Q 115 145 118 157 Q 108 161 100 155 Z" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1.2"/>${face(100, 155)}`;
+    } else if (stageIdx === 2) {
+      body = `<path d="M 100 180 Q 100 145 100 130" stroke="#5a8a4a" stroke-width="3"/>
+        <path d="M 100 155 Q 78 148 72 165 Q 85 172 100 160 Z" fill="#7ab56a" stroke="#4a7a3e" stroke-width="1.2"/>
+        <path d="M 100 138 Q 120 133 128 148 Q 112 156 100 143 Z" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1.2"/>
+        <circle cx="85" cy="162" r="2" fill="#6b4a2e"/>
+        <circle cx="118" cy="147" r="2" fill="#6b4a2e"/>
+        <ellipse cx="100" cy="128" rx="10" ry="8" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1"/>${face(100, 128)}`;
+    } else if (stageIdx === 3) {
+      body = `<path d="M 100 180 Q 100 140 100 115" stroke="#5a8a4a" stroke-width="3"/>
+        <path d="M 100 155 Q 72 146 66 168 Q 82 178 100 162 Z" fill="#7ab56a" stroke="#4a7a3e" stroke-width="1.5"/>
+        <path d="M 100 140 Q 125 132 134 150 Q 115 162 100 146 Z" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1.5"/>
+        <path d="M 100 125 Q 82 118 76 132 Q 88 138 100 130 Z" fill="#7ab56a" stroke="#4a7a3e" stroke-width="1.2"/>
+        <circle cx="82" cy="162" r="3" fill="#6b4a2e"/>
+        <circle cx="90" cy="165" r="2" fill="#6b4a2e"/>
+        <circle cx="120" cy="148" r="3" fill="#6b4a2e"/>
+        <circle cx="86" cy="128" r="2" fill="#6b4a2e"/>
+        <ellipse cx="100" cy="115" rx="12" ry="9" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1.2"/>${face(100, 115)}`;
+    } else {
+      body = `<path d="M 100 180 Q 100 135 100 95" stroke="#5a8a4a" stroke-width="3"/>
+        <path d="M 100 160 Q 66 148 58 172 Q 78 186 100 168 Z" fill="#7ab56a" stroke="#4a7a3e" stroke-width="1.5"/>
+        <path d="M 100 140 Q 130 130 140 152 Q 118 166 100 148 Z" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1.5"/>
+        <path d="M 100 120 Q 76 112 70 130 Q 84 140 100 128 Z" fill="#7ab56a" stroke="#4a7a3e" stroke-width="1.5"/>
+        <path d="M 100 105 Q 122 98 128 115 Q 114 122 100 112 Z" fill="#9ac67a" stroke="#4a7a3e" stroke-width="1.5"/>
+        <circle cx="78" cy="168" r="3" fill="#6b4a2e"/>
+        <circle cx="84" cy="172" r="3" fill="#6b4a2e"/>
+        <circle cx="68" cy="165" r="2" fill="#6b4a2e"/>
+        <circle cx="122" cy="150" r="3" fill="#6b4a2e"/>
+        <circle cx="130" cy="154" r="2" fill="#6b4a2e"/>
+        <circle cx="80" cy="128" r="3" fill="#6b4a2e"/>
+        <circle cx="88" cy="132" r="2" fill="#6b4a2e"/>
+        <circle cx="120" cy="114" r="2" fill="#6b4a2e"/>${face(100, 100)}`;
+    }
+  }
+
+  // Overlay: extra harvest decorations at max level
+  let harvest = '';
+  if (boxOpen && stageIdx >= MAX_STAGE) {
+    const n = (state.pet.harvest || []).length;
+    const em = speciesInfo().harvestEmoji;
+    for (let i = 0; i < Math.min(n, 6); i++) {
+      const angle = (i - n/2) * 0.5;
+      const x = 100 + Math.cos(angle + Math.PI/2) * (30 + (i%2)*8);
+      const y = 80 + Math.sin(angle + Math.PI/2) * (10 + (i%2)*4) - (i%3)*6;
+      harvest += `<text x="${x}" y="${y}" font-size="16" text-anchor="middle">${em}</text>`;
+    }
+  }
+
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${pot}${soil}${body}${harvest}</svg>`;
 }
 
 function getPetMood() {
@@ -780,7 +1024,7 @@ function getPetMoodText() {
 }
 
 // ── TASKS ──
-function completeTask(taskId) {
+function completeTask(taskId, partial = false) {
   const task = state.tasks.find(t => t.id === taskId);
   if (!task) return;
   const t = todayStr();
@@ -788,17 +1032,60 @@ function completeTask(taskId) {
   if (task.type === 'daily' && state.completions[t].includes(taskId)) {
     toast('今天已经完成过啦~', '🌼'); return;
   }
-  state.completions[t].push(taskId);
   const xpMap = [5, 15, 30, 60];
-  let xp = xpMap[task.difficulty - 1];
-  let stars = Math.max(2, Math.floor(xp * 0.5));
+  const baseXp = xpMap[task.difficulty - 1];
+  const baseStars = Math.max(2, Math.floor(baseXp * 0.5));
+  // Handle partial → full upgrade: refund partial first, then award remainder as full
+  const partialKey = t + '::' + taskId;
+  const alreadyStarted = !!(state.partialStarts && state.partialStarts[partialKey]);
+  let xp, stars;
+  if (partial) {
+    if (alreadyStarted) { toast('已经启动过啦，完成就能领剩下的~', '🌱'); return; }
+    xp = Math.floor(baseXp * 0.5);
+    stars = Math.floor(baseStars * 0.5);
+  } else if (alreadyStarted) {
+    // Completing after a partial: award remainder only
+    const prev = state.partialStarts[partialKey];
+    xp = Math.max(0, baseXp - (prev.xp || 0));
+    stars = Math.max(0, baseStars - (prev.stars || 0));
+  } else {
+    xp = baseXp;
+    stars = baseStars;
+  }
   const hour = new Date().getHours();
-  if (hour >= 1 && hour < 6) { xp = Math.floor(xp * 0.5); stars = Math.floor(stars * 0.5); toast('深夜完成奖励减半 🌙 早点休息哦', '🌙'); }
+  let nightHalf = false;
+  if (hour >= 1 && hour < 6) {
+    xp = Math.floor(xp * 0.5); stars = Math.floor(stars * 0.5); nightHalf = true;
+  }
+  const dimGain = Math.ceil(xp / 3);
+
+  if (partial) {
+    // Only record the partial start — do NOT push into completions yet
+    if (!state.partialStarts) state.partialStarts = {};
+    state.partialStarts[partialKey] = { xp, stars, dim: task.dim, dimGain, nightHalf };
+    state.pet.xp += xp;
+    state.stars += stars;
+    state.dims[task.dim] += dimGain;
+    state.pet.stage = getPetStage();
+    syncHarvestAfterXpChange();
+    save(); renderAll();
+    toast(`启动「${task.name}」+${xp}xp +${stars}✨`, '🌱');
+    return;
+  }
+
+  // Full completion
+  state.completions[t].push(taskId);
+  const prev = state.partialStarts && state.partialStarts[partialKey];
+  const totalXp = (prev ? prev.xp : 0) + xp;
+  const totalStars = (prev ? prev.stars : 0) + stars;
+  const totalDimGain = (prev ? prev.dimGain : 0) + dimGain;
   if (!state.rewardLog[t]) state.rewardLog[t] = {};
-  state.rewardLog[t][taskId] = { xp, stars, dim: task.dim, dimGain: Math.ceil(xp / 3) };
+  state.rewardLog[t][taskId] = { xp: totalXp, stars: totalStars, dim: task.dim, dimGain: totalDimGain };
+  if (prev) delete state.partialStarts[partialKey];
   state.pet.xp += xp;
   state.stars += stars;
-  state.dims[task.dim] += Math.ceil(xp / 3);
+  state.dims[task.dim] += dimGain;
+  if (nightHalf) toast('深夜完成奖励减半 🌙 早点休息哦', '🌙');
   if (!state.lastCompletionDate || state.lastCompletionDate !== t) {
     const last = state.lastCompletionDate;
     if (last) { const diff = (new Date(t) - new Date(last)) / 86400000; state.streak = diff < 1.5 ? state.streak + 1 : 1; }
@@ -806,27 +1093,45 @@ function completeTask(taskId) {
     state.lastCompletionDate = t;
   }
   const newStage = getPetStage();
-  if (newStage > state.pet.stage) { state.pet.stage = newStage; setTimeout(() => toast(`${state.pet.name} 进化了！现在是 ${PET_STAGES[newStage].name} 🎉`, '🎊'), 400); }
+  if (newStage > state.pet.stage) { state.pet.stage = newStage; setTimeout(() => toast(`${state.pet.name} 进化了！现在是 ${getPetStageName(newStage)} 🎉`, '🎊'), 400); }
+  state.pet.stage = newStage;
+  syncHarvestAfterXpChange();
   toast(`完成「${task.name}」+${xp}xp +${stars}✨`, '✨');
   save(); renderAll();
 }
 
 function uncompleteTask(taskId) {
   const t = todayStr();
-  if (!state.completions[t]) return;
-  const idx = state.completions[t].indexOf(taskId);
-  if (idx < 0) return;
-  const log = state.rewardLog[t] && state.rewardLog[t][taskId];
-  if (log) {
-    state.pet.xp = Math.max(0, state.pet.xp - (log.xp || 0));
-    state.stars = Math.max(0, state.stars - (log.stars || 0));
-    if (log.dim) state.dims[log.dim] = Math.max(0, (state.dims[log.dim] || 0) - (log.dimGain || 0));
-    delete state.rewardLog[t][taskId];
+  const partialKey = t + '::' + taskId;
+  // Case 1: uncompleting a fully completed task
+  if (state.completions[t] && state.completions[t].includes(taskId)) {
+    const idx = state.completions[t].indexOf(taskId);
+    const log = state.rewardLog[t] && state.rewardLog[t][taskId];
+    if (log) {
+      state.pet.xp = Math.max(0, state.pet.xp - (log.xp || 0));
+      state.stars = Math.max(0, state.stars - (log.stars || 0));
+      if (log.dim) state.dims[log.dim] = Math.max(0, (state.dims[log.dim] || 0) - (log.dimGain || 0));
+      delete state.rewardLog[t][taskId];
+    }
+    state.completions[t].splice(idx, 1);
+    state.pet.stage = getPetStage();
+    syncHarvestAfterXpChange();
+    save(); renderAll();
+    toast('取消打卡，经验已退回', '↩');
+    return;
   }
-  state.pet.stage = getPetStage();
-  state.completions[t].splice(idx, 1);
-  save(); renderAll();
-  toast('取消打卡，经验已退回', '↩');
+  // Case 2: canceling a partial-start
+  if (state.partialStarts && state.partialStarts[partialKey]) {
+    const p = state.partialStarts[partialKey];
+    state.pet.xp = Math.max(0, state.pet.xp - (p.xp || 0));
+    state.stars = Math.max(0, state.stars - (p.stars || 0));
+    if (p.dim) state.dims[p.dim] = Math.max(0, (state.dims[p.dim] || 0) - (p.dimGain || 0));
+    delete state.partialStarts[partialKey];
+    state.pet.stage = getPetStage();
+    syncHarvestAfterXpChange();
+    save(); renderAll();
+    toast('取消启动，奖励已退回', '↩');
+  }
 }
 
 function logSleep(type) {
@@ -942,11 +1247,35 @@ function renderHeader() {
 }
 
 function renderPet() {
+  ensurePetFields();
+  maybeHarvestDropOff();
   document.getElementById('petName').textContent = state.pet.name;
   const si = getPetStage();
-  document.getElementById('petStage').textContent = PET_STAGES[si].name;
-  document.getElementById('petSvg').innerHTML = getPetSvg(si);
-  document.getElementById('petMood').textContent = getPetMoodText();
+  const boxOpen = !!state.settings.seedOpened;
+  document.getElementById('petStage').textContent = boxOpen ? getPetStageName(si) : '神秘种子盲盒';
+  document.getElementById('petSvg').innerHTML = getPetSvg(si, getPetMood());
+  document.getElementById('petMood').textContent = boxOpen ? getPetMoodText() : '点下面的按钮，拆开你的第一颗种子吧~';
+  document.getElementById('blindBoxArea').style.display = boxOpen ? 'none' : 'block';
+  document.getElementById('patArea').style.display = boxOpen ? '' : 'none';
+  if (boxOpen) {
+    const info = speciesInfo();
+    document.getElementById('speciesBadge').textContent = `${info.emoji} ${info.zhName}`;
+  } else {
+    document.getElementById('speciesBadge').textContent = '🎁 ? ? ?';
+  }
+  const hb = document.getElementById('harvestBar');
+  const harvestN = (state.pet.harvest || []).length;
+  if (boxOpen && si >= MAX_STAGE) {
+    const info = speciesInfo();
+    const nextAt = harvestStart() + (harvestN + 1) * HARVEST_STEP;
+    const toNext = Math.max(0, nextAt - state.pet.xp);
+    hb.style.display = 'block';
+    hb.innerHTML = harvestN > 0
+      ? `🎉 已结出 <b>${harvestN}</b> 个${info.harvestZh} ${info.harvestEmoji} · 明日掉落换 ${harvestN*100}✨ · 再 ${toNext} 经验再长一个`
+      : `满级！再 ${toNext} 经验就会长出第一个${info.harvestZh} ${info.harvestEmoji}`;
+  } else {
+    hb.style.display = 'none';
+  }
   const cur = PET_STAGES[si], nxt = PET_STAGES[si + 1];
   const floor = cur.minXp, ceil = nxt ? nxt.minXp : floor + 500;
   const pct = Math.min(100, ((state.pet.xp - floor) / (ceil - floor)) * 100);
@@ -978,19 +1307,45 @@ function renderTasks() {
   const dimIcons = {career:'💼',charm:'💖',wealth:'💰',wisdom:'📚',health:'🌿'};
   const diffTags = ['🌱小事','🌿一般','🌳挑战','🌲大事'];
   const diffXp = [5,15,30,60];
+  const partialKeyFor = id => todayStr() + '::' + id;
   const row = task => {
     const isDone = done.includes(task.id);
-    return `<div class="task ${isDone?'done':''}" onclick="${isDone?`uncompleteTask('${task.id}')`:`completeTask('${task.id}')`}">
-      <div class="task-check"></div>
+    const isStarted = !!(state.partialStarts && state.partialStarts[partialKeyFor(task.id)]);
+    const baseXp = diffXp[task.difficulty-1];
+    const halfXp = Math.floor(baseXp * 0.5);
+    const remainXp = Math.max(0, baseXp - halfXp);
+    if (isDone) {
+      return `<div class="task done" onclick="uncompleteTask('${task.id}')">
+        <div class="task-check"></div>
+        <div class="task-body">
+          <div class="task-name">${esc(task.name)}</div>
+          <div class="task-meta">
+            <span class="tag">${dimIcons[task.dim]} ${dimNames[task.dim]}</span>
+            <span class="tag">${diffTags[task.difficulty-1]}</span>
+            ${task.type==='once'?'<span class="tag">一次性</span>':''}
+          </div>
+        </div>
+        <div class="task-reward">✓ 已完成</div>
+      </div>`;
+    }
+    return `<div class="task ${isStarted?'started':''}">
+      <div class="task-check" onclick="event.stopPropagation(); completeTask('${task.id}')"></div>
       <div class="task-body">
         <div class="task-name">${esc(task.name)}</div>
         <div class="task-meta">
           <span class="tag">${dimIcons[task.dim]} ${dimNames[task.dim]}</span>
           <span class="tag">${diffTags[task.difficulty-1]}</span>
           ${task.type==='once'?'<span class="tag">一次性</span>':''}
+          ${isStarted?'<span class="tag" style="background:#ffe6bb;color:#8a5a20;">🌱 已启动</span>':''}
         </div>
       </div>
-      <div class="task-reward">+${diffXp[task.difficulty-1]}xp</div>
+      <div class="task-actions" style="display:flex;gap:6px;">
+        ${isStarted
+          ? `<button class="quick-btn" onclick="event.stopPropagation(); uncompleteTask('${task.id}')" style="padding:6px 8px;font-size:11px;background:#f3ece0;color:#8a7050;" title="取消启动">↩</button>
+             <button class="quick-btn" onclick="event.stopPropagation(); completeTask('${task.id}')" style="padding:6px 10px;font-size:12px;background:var(--peach);color:#fff;">✓ 完成 +${remainXp}xp</button>`
+          : `<button class="quick-btn" onclick="event.stopPropagation(); completeTask('${task.id}', true)" style="padding:6px 10px;font-size:12px;background:#c6e19a;color:#3d5a24;" title="启动，先拿一半奖励">▸ 启动 +${halfXp}xp</button>
+             <button class="quick-btn" onclick="event.stopPropagation(); completeTask('${task.id}')" style="padding:6px 10px;font-size:12px;background:var(--peach);color:#fff;">✓ 完成 +${baseXp}xp</button>`}
+      </div>
     </div>`;
   };
   const homeList = state.tasks.filter(t2 => t2.type==='daily' || (t2.type==='once' && !done.includes(t2.id))).slice(0,8);
@@ -1151,7 +1506,7 @@ function exportData() {
 function resetData() {
   if (!confirm(`真的要全部重置吗？${state.pet.name}会重新成为一颗种子。`)) return;
   if (!confirm('再次确认：所有进度都会消失！')) return;
-  state = { pet:{name:'毛豆',xp:0,stage:0}, stars:0, streak:0, lastActiveDate:null, lastCompletionDate:null, dims:{career:0,charm:0,wealth:0,wisdom:0,health:0}, tasks:[], completions:{}, shopItems:[], shopPurchases:{}, sleep:{}, journal:[], rewardLog:{} };
+  state = { pet:{name:'小种子',xp:0,stage:0,species:null,harvest:[],lastHarvestXp:0,lastHarvestDate:null}, stars:0, streak:0, lastActiveDate:null, lastCompletionDate:null, dims:{career:0,charm:0,wealth:0,wisdom:0,health:0}, tasks:[], completions:{}, shopItems:[], shopPurchases:{}, sleep:{}, journal:[], rewardLog:{}, settings:{seedOpened:false}, partialStarts:{} };
   save(); seedDefaults(); renderAll();
   toast('已重置，重新出发 🌱', '🌿');
 }
