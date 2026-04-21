@@ -1,6 +1,8 @@
 <div align="center">
 
 # 🌱 Habit Garden · 习惯小花园
+网址：https://santhiachan.github.io/habit-garden/Habit_Garden.html 
+也可以架设到自己的服务器上。
 
 **用养植物的方式养成好习惯**
 
