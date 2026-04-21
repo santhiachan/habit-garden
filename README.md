@@ -110,7 +110,7 @@
 ### 最简单：直接打开
 
 ```
-双击 Habit_Garden_firebase_v2.html → 浏览器打开 → 完事
+双击 Habit_Garden.html → 浏览器打开 → 完事
 ```
 
 > ⚠️ `file://` 协议下 Google 登录不可用，但邮箱注册/登录可以正常使用。
@@ -167,7 +167,7 @@ const firebaseConfig = {
 
 ```
 .
-└── Habit_Garden_firebase_v2.html   ← 就这一个文件，所有代码都在里面
+└── Habit_Garden.html   ← 就这一个文件，所有代码都在里面
 ```
 
 是的，真的就一个文件。
