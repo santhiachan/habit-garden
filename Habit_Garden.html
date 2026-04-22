@@ -871,6 +871,11 @@
   }
   .comfort-btn:hover { transform: translateY(-2px); }
 
+  @keyframes hgHeartFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: .95; }
+    50%      { transform: translateY(-6px) scale(1.1); opacity: 1; }
+  }
+
   .sleep-panel {
     background: linear-gradient(160deg, #3d4a6b 0%, #5a6a8a 100%);
     color: white;
@@ -1013,8 +1018,11 @@
 
 <style>
   /* ── AUTH SCREEN (from firebase version) ── */
-  #authScreen{position:fixed;inset:0;background:linear-gradient(160deg,#faf3e7 0%,#f4ead5 100%);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;}
-  .auth-card{background:white;border-radius:28px;padding:40px 36px;max-width:420px;width:100%;box-shadow:var(--shadow-deep);border:3px solid white;}
+  /* Auth screen is now OPT-IN — users can use the app offline without signing in.
+     Sign-in lives inside the Settings modal. `display:none` by default; we do
+     NOT flip this on startup anymore. */
+  #authScreen{position:fixed;inset:0;background:linear-gradient(160deg,#faf3e7 0%,#f4ead5 100%);display:none;align-items:center;justify-content:center;z-index:10000;padding:20px;}
+  .auth-card{background:white;border-radius:28px;padding:40px 36px;max-width:420px;width:100%;box-shadow:var(--shadow-deep);border:3px solid white;position:relative;}
   .auth-logo{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:var(--moss-deep);text-align:center;margin-bottom:6px;}
   .auth-sub{font-family:'Caveat',cursive;font-size:18px;color:var(--peach-deep);text-align:center;margin-bottom:28px;}
   .auth-btn{width:100%;padding:14px;border:none;border-radius:16px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s;margin-bottom:12px;}
@@ -1033,8 +1041,8 @@
   .auth-error{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;font-size:13px;color:#991b1b;margin-bottom:12px;display:none;}
   .auth-loading{text-align:center;font-family:'Caveat',cursive;font-size:18px;color:var(--ink-soft);padding:20px 0;display:none;}
 
-  /* hide the main app until auth is resolved */
-  #appScreen{display:none;}
+  /* App starts visible; auth is now optional (sign-in lives in Settings). */
+  #appScreen{display:block;}
 
   /* user badge + sync indicator in header */
   .user-badge{background:var(--moss);color:white;padding:8px 16px;border-radius:20px;font-family:'Caveat',cursive;font-size:16px;display:flex;align-items:center;gap:8px;}
@@ -1044,6 +1052,8 @@
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
   .signout-btn{background:transparent;border:2px solid var(--cream-2);border-radius:16px;padding:6px 14px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink-soft);}
   .signout-btn:hover{border-color:var(--peach);color:var(--peach-deep);}
+  .settings-btn{background:var(--cream-2);border:2px solid var(--ink);border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);box-shadow:2px 2px 0 var(--ink);transition: transform .1s;}
+  .settings-btn:hover{transform:rotate(20deg);}
 
   /* ── TASK ROW LAYOUT FIX ──
      Keep the task name readable by giving .task-body a real minimum width.
@@ -1071,34 +1081,7 @@
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
-<div id="authScreen">
-  <div class="auth-card">
-    <div class="auth-logo">🌱 习惯小花园</div>
-    <div class="auth-sub">Habit Garden · your better self</div>
-    <div class="auth-error" id="authError"></div>
-    <div class="auth-loading" id="authLoading">连接中...</div>
-    <div id="authForms">
-      <button class="auth-btn auth-google" onclick="signInGoogle()">
-        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        使用 Google 账号登录
-      </button>
-      <div class="auth-divider">或用邮箱</div>
-      <div id="loginForm">
-        <input class="auth-input" type="email" id="emailInput" placeholder="邮箱地址">
-        <input class="auth-input" type="password" id="passwordInput" placeholder="密码">
-        <button class="auth-btn auth-primary" onclick="signInEmail()">登录</button>
-        <div class="auth-switch">还没有账号？<a onclick="showRegister()">注册</a></div>
-      </div>
-      <div id="registerForm" style="display:none;">
-        <input class="auth-input" type="email" id="regEmailInput" placeholder="邮箱地址">
-        <input class="auth-input" type="password" id="regPasswordInput" placeholder="密码（至少6位）">
-        <button class="auth-btn auth-primary" onclick="signUpEmail()">注册账号</button>
-        <div class="auth-switch">已有账号？<a onclick="showLogin()">登录</a></div>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Auth is handled inline inside #settingsModal now (no full-screen takeover). -->
 
 <!-- MAIN APP -->
 <div id="appScreen">
@@ -1114,13 +1097,19 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      <button id="langToggle" onclick="toggleLang()" style="background: var(--cream-2); border: 2px solid var(--ink); border-radius: 16px; padding: 6px 14px; font-family: inherit; font-size: 13px; cursor: pointer; color: var(--ink); box-shadow: 2px 2px 0 var(--ink);">中 / EN</button>
       <div class="date-badge" id="dateBadge"></div>
-      <div class="user-badge" onclick="window._forceSync && window._forceSync()" title="点击强制同步" style="cursor:pointer;">
-        <div class="sync-indicator" id="syncDot"></div>
+      <div class="user-badge" id="userBadge" onclick="editUsername()" title="点击修改用户名 · 点右侧图标强制同步" style="cursor:pointer;">
+        <div class="sync-indicator" id="syncDot" onclick="event.stopPropagation(); window._forceSync && window._forceSync();"></div>
         <span id="userEmail"></span>
+        <span style="opacity:.5; font-size:12px;">✎</span>
       </div>
-      <button class="signout-btn" onclick="signOut()" data-i18n="signout">退出登录</button>
+      <button class="signout-btn" id="headerSignOutBtn" onclick="signOut()" data-i18n="signout" style="display:none;">退出登录</button>
+      <button class="settings-btn" onclick="openSettingsModal()" title="设置 / Settings" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -1180,7 +1169,7 @@
         </div>
 
         <div class="power-display">
-          <span class="power-label" data-i18n="power">综合战斗力</span>
+          <span class="power-label" data-i18n="power">综合成长值</span>
           <span class="power-value" id="powerValue">0</span>
         </div>
       </div>
@@ -1203,13 +1192,13 @@
     </div>
 
     <div class="sleep-panel">
-      <div class="sleep-title" data-i18n="sleep_title">今晚打算几点睡？</div>
-      <div class="sleep-sub" data-i18n="sleep_sub">早睡是元习惯，影响明天的一切 ✦</div>
+      <div class="sleep-title" data-i18n="sleep_title">昨晚几点睡？</div>
+      <div class="sleep-sub" data-i18n="sleep_sub">早睡是元习惯，影响今天的一切 ✦</div>
       <div class="sleep-options">
-        <button class="sleep-btn" data-sleep="before23" data-i18n="sleep_b23" onclick="logSleep('before23')">🌟 23:00前</button>
-        <button class="sleep-btn" data-sleep="before24" data-i18n="sleep_b24" onclick="logSleep('before24')">😊 23-24点</button>
-        <button class="sleep-btn" data-sleep="before1" data-i18n="sleep_b1" onclick="logSleep('before1')">😐 凌晨1点前</button>
-        <button class="sleep-btn" data-sleep="late" data-i18n="sleep_late" onclick="logSleep('late')">😴 更晚了</button>
+        <button class="sleep-btn" data-sleep="before23" data-i18n="sleep_b23" onclick="logSleep('before23')">23:00前</button>
+        <button class="sleep-btn" data-sleep="before24" data-i18n="sleep_b24" onclick="logSleep('before24')">23-24点</button>
+        <button class="sleep-btn" data-sleep="before1" data-i18n="sleep_b1" onclick="logSleep('before1')">凌晨1点前</button>
+        <button class="sleep-btn" data-sleep="late" data-i18n="sleep_late" onclick="logSleep('late')">更晚了</button>
       </div>
       <div style="margin-top: 12px; font-size: 13px; opacity: 0.8;" id="sleepStatus"></div>
     </div>
@@ -1326,12 +1315,10 @@
       <div class="form-group">
         <textarea id="journalInput" rows="3" data-i18n-ph="today_words_ph" placeholder="今天的一个小发现、一个小感受..."></textarea>
       </div>
+      <div class="form-group" style="margin-top:-4px;">
+        <input id="journalTagInput" type="text" data-i18n-ph="journal_tag_ph" placeholder="添加标签（用逗号或空格分隔，可选）">
+      </div>
       <button class="btn btn-primary" data-i18n="save_journal" onclick="saveJournal()" style="max-width: 200px;">记下来 ✎</button>
-    </div>
-
-    <div class="panel" style="margin-top: 20px;">
-      <div class="panel-title" data-i18n="last_7">最近 7 天</div>
-      <div id="weekChart"></div>
     </div>
 
     <div class="panel" style="margin-top: 20px;" id="moodPanel">
@@ -1349,21 +1336,21 @@
         <button class="btn" onclick="setMoodRange('year')" id="mrYear" style="background: var(--cream-2);">年</button>
         <div id="moodRangeHint" style="margin-left:auto; color: var(--ink-soft); font-size:13px; align-self:center;"></div>
       </div>
+
+      <!-- Activity chart: line chart with two y-axes.
+           Left y = tasks completed per day. Right y = sleep tier (4 levels).
+           Reacts to the 周/月/年 tab selection above. -->
+      <div id="activityChart" style="margin-top:14px;"></div>
+
       <div id="moodStats" style="margin-top:12px;"></div>
     </div>
 
     <div class="panel" style="margin-top: 20px;">
       <div class="panel-title" data-i18n="past_notes">写过的话</div>
+      <!-- Tag filter bar: clicking a tag ORs it into the active filter; clicking
+           again removes it. Empty = show everything. -->
+      <div id="journalTagBar" style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 12px; min-height:0;"></div>
       <div id="journalList"></div>
-    </div>
-
-    <div class="panel" style="margin-top: 20px;">
-      <div class="panel-title" data-i18n="data">数据</div>
-      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="quick-btn" data-i18n="export" onclick="exportData()">📥 导出数据</button>
-        <button class="quick-btn" data-i18n="import" onclick="importData()">📤 导入数据</button>
-        <button class="quick-btn" data-i18n="reset" onclick="resetData()" style="color: #c88585;">🗑 全部重置</button>
-      </div>
     </div>
   </section>
 
@@ -1382,6 +1369,102 @@
     <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="comfortHugBtn" style="background: var(--rose, #c9584a); color:#fff; border:none; border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 3px 0 var(--peach-deep, #8e3a30);"></button>
       <button id="comfortCloseBtn" style="background: transparent; color: var(--ink-soft); border:1.5px solid var(--ink-soft); border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; cursor:pointer;"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal (gear icon in header) -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal" style="max-width: 480px;">
+    <h3 data-i18n="settings_h">设置</h3>
+
+    <!-- Account section: swaps between "signed in" and "sign in / register" -->
+    <div id="settingsAccountSignedIn" style="display:none; margin-bottom:18px;">
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:6px;" data-i18n="account">账号</div>
+      <div style="display:flex; align-items:center; gap:10px; background:var(--cream-2); border-radius:14px; padding:12px 14px;">
+        <div style="flex:1;">
+          <div style="font-size:14px; font-weight:600;" id="settingsCurrentEmail"></div>
+          <div style="font-size:12px; color:var(--ink-soft);" id="settingsCurrentSub" data-i18n="cloud_synced">☁️ 已云端同步</div>
+        </div>
+        <button class="btn btn-ghost" onclick="signOut()" data-i18n="signout">退出登录</button>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label data-i18n="display_name">显示的用户名</label>
+        <div style="display:flex; gap:8px;">
+          <input id="settingsDisplayName" type="text" data-i18n-ph="display_name_ph" placeholder="想怎么显示都行 🌱">
+          <button class="btn btn-primary" onclick="saveDisplayName()" data-i18n="save" style="max-width:120px;">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsAccountSignedOut" style="display:none; margin-bottom:18px;">
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:6px;" data-i18n="account">账号</div>
+      <div style="background:var(--cream-2); border-radius:14px; padding:12px 14px; font-size:13px; color:var(--ink-soft); margin-bottom:12px;" data-i18n="offline_hint">
+        当前：未登录（数据只保存在本机）。登录后自动同步到云端。
+      </div>
+      <!-- Inline auth forms: Google + email/password, both login & register.
+           Kept inside the settings modal instead of a full-screen takeover. -->
+      <div class="auth-error" id="authError" style="display:none;"></div>
+      <div class="auth-loading" id="authLoading" style="display:none;">连接中...</div>
+      <div id="settingsAuthForms">
+        <button class="auth-btn auth-google" onclick="signInGoogle()" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+          <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          <span data-i18n="signin_google">使用 Google 账号登录</span>
+        </button>
+        <div class="auth-divider" data-i18n="or_email">或用邮箱</div>
+        <div id="loginForm">
+          <input class="auth-input" type="email" id="emailInput" data-i18n-ph="email_ph" placeholder="邮箱地址">
+          <input class="auth-input" type="password" id="passwordInput" data-i18n-ph="password_ph" placeholder="密码">
+          <button class="auth-btn auth-primary" onclick="signInEmail()" data-i18n="signin_btn">登录</button>
+          <div class="auth-switch" style="text-align:center; font-size:13px; color:var(--ink-soft);"><span data-i18n="no_account">还没有账号？</span><a onclick="showRegister()" style="color:var(--moss); cursor:pointer; font-weight:600; margin-left:4px;" data-i18n="register_btn">注册</a></div>
+        </div>
+        <div id="registerForm" style="display:none;">
+          <input class="auth-input" type="email" id="regEmailInput" data-i18n-ph="email_ph" placeholder="邮箱地址">
+          <input class="auth-input" type="password" id="regPasswordInput" data-i18n-ph="password6_ph" placeholder="密码（至少6位）">
+          <button class="auth-btn auth-primary" onclick="signUpEmail()" data-i18n="register_account">注册账号</button>
+          <div class="auth-switch" style="text-align:center; font-size:13px; color:var(--ink-soft);"><span data-i18n="has_account">已有账号？</span><a onclick="showLogin()" style="color:var(--moss); cursor:pointer; font-weight:600; margin-left:4px;" data-i18n="signin_btn">登录</a></div>
+        </div>
+      </div>
+    </div>
+
+    <hr style="border:none; border-top:1px solid var(--cream-2); margin:14px 0;">
+
+    <!-- Language -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:6px;" data-i18n="language">语言</div>
+      <div style="display:flex; gap:8px;">
+        <button class="quick-btn" id="settingsLangZh" onclick="setLang('zh')">中文</button>
+        <button class="quick-btn" id="settingsLangEn" onclick="setLang('en')">English</button>
+      </div>
+    </div>
+
+    <hr style="border:none; border-top:1px solid var(--cream-2); margin:14px 0;">
+
+    <!-- Data -->
+    <div>
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:6px;" data-i18n="data">数据</div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="quick-btn" data-i18n="export" onclick="exportData()">📥 导出数据</button>
+        <button class="quick-btn" data-i18n="import" onclick="importData()">📤 导入数据</button>
+        <button class="quick-btn" data-i18n="reset" onclick="resetData()" style="color: #c88585;">🗑 全部重置</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top: 20px;">
+      <button class="btn btn-ghost" data-i18n="close" onclick="closeSettingsModal()">关掉</button>
+    </div>
+  </div>
+</div>
+
+<!-- Random relaxation tip modal (pink gift box button in the comfort modal) -->
+<div class="modal-overlay" id="comfortTipModal">
+  <div class="modal" style="text-align:center; max-width:400px;">
+    <div style="font-size:44px; line-height:1; margin-bottom:8px;">🎀</div>
+    <h3 id="comfortTipTitle" style="margin: 4px 0 10px; color: var(--ink); font-family: 'Caveat', cursive; font-size: 28px; font-weight:600;"></h3>
+    <p id="comfortTipBody" style="color: var(--ink-soft); font-size: 15px; line-height: 1.7; margin: 0 0 22px; padding: 0 6px; white-space: pre-line;"></p>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button id="comfortTipDo" onclick="comfortTipDo()" style="background: var(--moss, #7a9b6e); color:#fff; border:none; border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 3px 0 var(--moss-deep, #4a6b47);"></button>
+      <button id="comfortTipSkip" onclick="comfortTipSkip()" style="background: transparent; color: var(--ink-soft); border:1.5px solid var(--ink-soft); border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; cursor:pointer;"></button>
     </div>
   </div>
 </div>
@@ -1470,26 +1553,50 @@
 
 <script>
 const LS_KEY = 'habit_garden_v1';
-const todayStr = () => new Date().toISOString().slice(0,10);
+/* Use the user's LOCAL date (not UTC) so "today" rolls over at the user's
+   local midnight 00:00. Previously toISOString() returned a UTC date, which
+   caused moods/tasks to appear under the wrong "today" depending on timezone. */
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 /* Use `var` (not `let`) so `state` is also reachable as `window.state`.
    The Firebase module below reads/writes window.state to sync the user's
    data with Firestore, and both refer to the same underlying slot. */
-var state = {
-  pet: { name: '毛豆', xp: 0, stage: 0, species: null, harvest: [], lastHarvestXp: 0, lastHarvestDate: null },
-  stars: 0, streak: 0, lastActiveDate: null,
-  dims: { career: 0, charm: 0, wealth: 0, wisdom: 0, health: 0 },
-  tasks: [], completions: {}, shopItems: [], shopPurchases: {},
-  cards: {}, sleep: {}, journal: [], moods: {}, customMoods: [], settings: { seenWelcome: false, seedOpened: false }
+function _freshDefaultState() {
+  return {
+    pet: { name: '毛豆', xp: 0, stage: 0, species: null, harvest: [], lastHarvestXp: 0, lastHarvestDate: null },
+    stars: 0, streak: 0, lastActiveDate: null,
+    dims: { career: 0, charm: 0, wealth: 0, wisdom: 0, health: 0 },
+    tasks: [], completions: {}, shopItems: [], shopPurchases: {},
+    cards: {}, sleep: {}, journal: [], moods: {}, customMoods: [], settings: { seenWelcome: false, seedOpened: false, displayName: null }
+  };
+}
+var state = _freshDefaultState();
+/* Exposed so auth / reset flows can wipe in-memory state without reloading. */
+window._resetStateToDefaults = function(){
+  window.state = _freshDefaultState();
+  state = window.state;
 };
 
 /* ============ Pet species (blind-box) ============ */
 const PET_SPECIES = {
-  edamame: { zhName:'毛豆', enName:'Edamame', harvestZh:'豆荚', harvestEn:'pod', harvestEmoji:'🫛' },
-  rose:    { zhName:'玫瑰', enName:'Rose',    harvestZh:'玫瑰花',harvestEn:'rose', harvestEmoji:'🌹' },
-  tomato:  { zhName:'番茄', enName:'Tomato',  harvestZh:'番茄', harvestEn:'tomato', harvestEmoji:'🍅' },
-  cactus:  { zhName:'仙人掌', enName:'Cactus',harvestZh:'仙人掌花',harvestEn:'cactus flower', harvestEmoji:'🌸' },
-  monstera:{ zhName:'龟背竹', enName:'Monstera',harvestZh:'大叶片',harvestEn:'big leaf', harvestEmoji:'🌿' },
+  edamame:   { zhName:'毛豆',   enName:'Edamame',    harvestZh:'豆荚',    harvestEn:'pod',          harvestEmoji:'🫛' },
+  rose:      { zhName:'玫瑰',   enName:'Rose',       harvestZh:'玫瑰花',  harvestEn:'rose',         harvestEmoji:'🌹' },
+  tomato:    { zhName:'番茄',   enName:'Tomato',     harvestZh:'番茄',    harvestEn:'tomato',       harvestEmoji:'🍅' },
+  cactus:    { zhName:'仙人掌', enName:'Cactus',     harvestZh:'仙人掌花',harvestEn:'cactus flower',harvestEmoji:'🌸' },
+  monstera:  { zhName:'龟背竹', enName:'Monstera',   harvestZh:'大叶片',  harvestEn:'big leaf',     harvestEmoji:'🌿' },
+  // 6 new species. 1–3 bloom flowers at the final stage; 4–6 bear fruit.
+  hyacinth:  { zhName:'风信子', enName:'Hyacinth',   harvestZh:'风信子花穗',harvestEn:'hyacinth spike',harvestEmoji:'💜' },
+  mimosa:    { zhName:'含羞草', enName:'Mimosa',     harvestZh:'含羞草粉球',harvestEn:'mimosa puff', harvestEmoji:'🌸' },
+  hydrangea: { zhName:'绣球花', enName:'Hydrangea',  harvestZh:'绣球',    harvestEn:'hydrangea',    harvestEmoji:'💙' },
+  blueberry: { zhName:'蓝莓',   enName:'Blueberry',  harvestZh:'蓝莓果',  harvestEn:'blueberry',    harvestEmoji:'🫐' },
+  orange:    { zhName:'橘子',   enName:'Orange',     harvestZh:'橘子',    harvestEn:'orange',       harvestEmoji:'🍊' },
+  eggplant:  { zhName:'茄子',   enName:'Eggplant',   harvestZh:'茄子',    harvestEn:'eggplant',     harvestEmoji:'🍆' },
 };
 const SPECIES_KEYS = Object.keys(PET_SPECIES);
 function getSpecies(){ return state.pet.species && PET_SPECIES[state.pet.species] ? state.pet.species : 'edamame'; }
@@ -1579,6 +1686,18 @@ function handleDayRoll() {
     // New-day harvest drop
     ensurePetFields();
     if (state.pet.harvest && state.pet.harvest.length > 0) dropHarvestForNewDay();
+    // Sweep out any one-time tasks that were completed on a PREVIOUS day so
+    // the list stays fresh. A task counts as completed if its id appears in any
+    // past day's completions.
+    try {
+      const completedIds = new Set();
+      Object.entries(state.completions || {}).forEach(([dateKey, ids]) => {
+        if (dateKey !== t && Array.isArray(ids)) ids.forEach(id => completedIds.add(id));
+      });
+      if (Array.isArray(state.tasks)) {
+        state.tasks = state.tasks.filter(task => !(task.type === 'once' && completedIds.has(task.id)));
+      }
+    } catch(e) { console.warn('[dayroll] one-time sweep failed:', e); }
   }
   state.lastActiveDate = t;
   save();
@@ -1780,13 +1899,20 @@ function getPetSvg(stageIdx, mood = 'happy') {
   if (stageIdx === 0) {
     body = drawSeed(species, mood);
   } else {
-    body = {
+    const drawer = {
       edamame: drawEdamame,
       rose: drawRose,
       tomato: drawTomato,
       cactus: drawCactus,
       monstera: drawMonstera,
-    }[species](stageIdx, harvestCount);
+      hyacinth: drawHyacinth,
+      mimosa: drawMimosa,
+      hydrangea: drawHydrangea,
+      blueberry: drawBlueberry,
+      orange: drawOrange,
+      eggplant: drawEggplant,
+    }[species] || drawEdamame;
+    body = drawer(stageIdx, harvestCount);
   }
   // Face — draw on the main body mass (species-placed)
   const face = stageIdx === 0 ? '' : drawFace(species, stageIdx, mouthPath, eyeR);
@@ -1817,7 +1943,14 @@ function drawMysteryBox(){
 }
 
 function drawSeed(species, mood){
-  const seedColor = { edamame:'#c7b186', rose:'#8a5c3a', tomato:'#b38050', cactus:'#9a7c52', monstera:'#7c6142' }[species] || '#a88868';
+  // Give each species a signature seed color so the blind-box result feels distinct.
+  // rose → soft pink; tomato → tomato red; monstera → deep green; others keep cozy earth tones.
+  // New species get their own hint of color too.
+  const seedColor = {
+    edamame:'#c7b186', rose:'#f3c0cf', tomato:'#d9533a', cactus:'#9a7c52', monstera:'#3e6b44',
+    hyacinth:'#b9a0d4', mimosa:'#f3c0cf', hydrangea:'#a9cbd8',
+    blueberry:'#5a6d94', orange:'#e8a45a', eggplant:'#7a4f8f',
+  }[species] || '#a88868';
   // Big, round seed so we can fit a face on it.
   const cx = 120, cy = 195;
   const rx = 26, ry = 20;
@@ -1850,6 +1983,13 @@ function drawFace(species, stageIdx, mouthPath, eyeR){
   if (species === 'tomato')  { fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 160 : stageIdx === 3 ? 138 : stageIdx === 4 ? 120 : 112; }
   if (species === 'cactus')  { fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 158 : stageIdx === 3 ? 140 : stageIdx === 4 ? 130 : 125; }
   if (species === 'monstera'){ fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 160 : stageIdx === 3 ? 145 : stageIdx === 4 ? 135 : 130; }
+  // New species — face placements tuned to each drawing's main mass.
+  if (species === 'hyacinth'){ fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 168 : stageIdx === 3 ? 158 : stageIdx === 4 ? 148 : 146; }
+  if (species === 'mimosa')  { fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 162 : stageIdx === 3 ? 148 : stageIdx === 4 ? 138 : 134; }
+  if (species === 'hydrangea'){fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 162 : stageIdx === 3 ? 146 : stageIdx === 4 ? 134 : 128; }
+  if (species === 'blueberry'){fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 162 : stageIdx === 3 ? 148 : stageIdx === 4 ? 136 : 128; }
+  if (species === 'orange')  { fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 160 : stageIdx === 3 ? 140 : stageIdx === 4 ? 126 : 118; }
+  if (species === 'eggplant'){ fy = stageIdx === 1 ? 178 : stageIdx === 2 ? 160 : stageIdx === 3 ? 142 : stageIdx === 4 ? 128 : 120; }
   // Adjust mouth relative coordinates
   const mp = mouthPath.replace(/170|165|172|168|176/g, (m)=>{
     const base = { '165': fy-5, '168': fy-2, '170': fy, '172': fy+2, '176': fy+6 }[m] || m;
@@ -2253,6 +2393,545 @@ function monsteraLeaf(cx, cy, rot, scale){
   </g>`;
 }
 
+/* ===== New species drawings =====
+   Each draw function has to mirror the existing contract:
+     (stageIdx, harvestCount) → SVG fragment within 240×240 viewBox, pot anchored at y≈205.
+   Stages 1–5 are sprout → mature. At the mature stage, species 1–3 (hyacinth,
+   mimosa, hydrangea) bloom flowers; species 4–6 (blueberry, orange, eggplant)
+   bear fruit. Each harvest adds one extra flower/fruit around the plant. */
+
+/* --- Hyacinth / 风信子: straight spear-shaped leaves, tall purple flower spike --- */
+function drawHyacinth(stageIdx, harvestCount){
+  if (stageIdx === 1) {
+    return `
+      <path d="M 120 200 L 115 172" stroke="#4a8a52" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <path d="M 120 200 L 125 174" stroke="#4a8a52" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    `;
+  }
+  if (stageIdx === 2) {
+    return `
+      <path d="M 118 200 L 104 150" stroke="#4a8a52" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 120 200 L 120 145" stroke="#4a8a52" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 122 200 L 136 150" stroke="#4a8a52" stroke-width="3" fill="none" stroke-linecap="round"/>
+    `;
+  }
+  if (stageIdx === 3) {
+    return `
+      <path d="M 118 200 L 96 138" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 119 200 L 108 132" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 121 200 L 132 132" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 122 200 L 144 138" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 120 200 L 120 130" stroke="#3a6a38" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    `;
+  }
+  if (stageIdx === 4) {
+    // Leaves + an emerging flower spike that's still mostly green with purple tips.
+    return `
+      <path d="M 116 200 L 92 128" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 119 200 L 104 118" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 121 200 L 136 118" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 124 200 L 148 128" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <path d="M 120 200 L 120 120" stroke="#3a6a38" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      ${hyacinthSpike(120, 148, 8, 0.6)}
+    `;
+  }
+  // Stage 5 — full purple spike in bloom; harvests add smaller spikes around it.
+  const extras = Array.from({length: harvestCount}, (_, i) => {
+    const angle = (i / Math.max(1, harvestCount)) * Math.PI * 1.6 - 0.2;
+    const x = 120 + Math.cos(angle) * 42;
+    const y = 150 + Math.sin(angle) * 20;
+    return hyacinthSpike(x, y, 6, 0.75);
+  }).join('');
+  return `
+    <path d="M 112 200 L 86 128" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <path d="M 118 200 L 102 116" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <path d="M 122 200 L 138 116" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <path d="M 128 200 L 154 128" stroke="#4a8a52" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <path d="M 120 200 L 120 116" stroke="#3a6a38" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    ${hyacinthSpike(120, 140, 10, 1.0)}
+    ${extras}
+  `;
+}
+function hyacinthSpike(cx, cy, w, scale){
+  // Cone of little purple florets stacked in rows (bottom wider, top narrower).
+  const rows = 4;
+  const florets = [];
+  for (let r = 0; r < rows; r++) {
+    const rowY = cy + (r - (rows-1)/2) * 8 * scale;
+    const rowW = w * (1 - r/rows) * scale;
+    const count = Math.max(3, Math.round(4 + (rows - r)));
+    for (let i = 0; i < count; i++) {
+      const t = i / Math.max(1, count-1);
+      const fx = cx + (t - 0.5) * rowW * 2;
+      florets.push(`<circle cx="${fx.toFixed(1)}" cy="${rowY.toFixed(1)}" r="${(3.2*scale).toFixed(1)}" fill="#9b7ad0" stroke="#6a4a98" stroke-width="0.8"/>`);
+      florets.push(`<circle cx="${(fx-0.6).toFixed(1)}" cy="${(rowY-0.6).toFixed(1)}" r="${(1.4*scale).toFixed(1)}" fill="#c4b5d9" opacity="0.8"/>`);
+    }
+  }
+  return `<g>${florets.join('')}</g>`;
+}
+
+/* --- Mimosa / 含羞草: feathery paired leaflets, pale-pink puff flowers --- */
+function drawMimosa(stageIdx, harvestCount){
+  if (stageIdx === 1) {
+    return `
+      <path d="M 120 200 L 120 176" stroke="#5a8a55" stroke-width="2.2" fill="none"/>
+      <circle cx="114" cy="178" r="2" fill="#7fb26a"/>
+      <circle cx="120" cy="176" r="2" fill="#7fb26a"/>
+      <circle cx="126" cy="178" r="2" fill="#7fb26a"/>
+    `;
+  }
+  if (stageIdx === 2) {
+    return `
+      <path d="M 120 200 L 120 160" stroke="#5a8a55" stroke-width="2.6" fill="none"/>
+      ${mimosaLeaflet(104, 170, -30)}
+      ${mimosaLeaflet(136, 170, 30)}
+      ${mimosaLeaflet(120, 162, 0)}
+    `;
+  }
+  if (stageIdx === 3) {
+    return `
+      <path d="M 120 200 L 120 146" stroke="#5a8a55" stroke-width="2.8" fill="none"/>
+      ${mimosaLeaflet(100, 172, -35)}
+      ${mimosaLeaflet(140, 172, 35)}
+      ${mimosaLeaflet(104, 152, -22)}
+      ${mimosaLeaflet(136, 152, 22)}
+      ${mimosaLeaflet(120, 146, 0)}
+    `;
+  }
+  if (stageIdx === 4) {
+    return `
+      <path d="M 120 200 L 120 132" stroke="#5a8a55" stroke-width="3" fill="none"/>
+      ${mimosaLeaflet(96, 172, -38)}
+      ${mimosaLeaflet(144, 172, 38)}
+      ${mimosaLeaflet(100, 150, -24)}
+      ${mimosaLeaflet(140, 150, 24)}
+      ${mimosaLeaflet(108, 134, -12)}
+      ${mimosaLeaflet(132, 134, 12)}
+      <!-- tiny pink puffs forming -->
+      <circle cx="110" cy="122" r="4" fill="#f3c0cf" opacity="0.85"/>
+      <circle cx="130" cy="122" r="4" fill="#f3c0cf" opacity="0.85"/>
+    `;
+  }
+  // Stage 5 — full fluffy puff balls.
+  const extras = Array.from({length: harvestCount}, (_, i) => {
+    const angle = (i / Math.max(1, harvestCount)) * Math.PI * 1.7 - 0.4;
+    const x = 120 + Math.cos(angle) * 46;
+    const y = 128 + Math.sin(angle) * 22;
+    return mimosaPuff(x, y, 7);
+  }).join('');
+  return `
+    <path d="M 120 200 L 120 120" stroke="#5a8a55" stroke-width="3.2" fill="none"/>
+    ${mimosaLeaflet(92, 172, -42)}
+    ${mimosaLeaflet(148, 172, 42)}
+    ${mimosaLeaflet(96, 148, -26)}
+    ${mimosaLeaflet(144, 148, 26)}
+    ${mimosaLeaflet(104, 126, -14)}
+    ${mimosaLeaflet(136, 126, 14)}
+    ${mimosaPuff(120, 118, 10)}
+    ${mimosaPuff(104, 130, 8)}
+    ${mimosaPuff(136, 130, 8)}
+    ${extras}
+  `;
+}
+function mimosaLeaflet(cx, cy, rot){
+  // Pair of fern-like leaflets — a central spine with tiny circular leaflets.
+  return `<g transform="translate(${cx} ${cy}) rotate(${rot})">
+    <path d="M -12 0 L 12 0" stroke="#3a6a38" stroke-width="1.2"/>
+    ${Array.from({length:6}, (_, i) => {
+      const x = -10 + i * 4;
+      return `<circle cx="${x}" cy="-3" r="1.8" fill="#7fb26a"/><circle cx="${x}" cy="3" r="1.8" fill="#7fb26a"/>`;
+    }).join('')}
+  </g>`;
+}
+function mimosaPuff(cx, cy, r){
+  // Dandelion-like puff: tiny petals radiating from a core.
+  const rays = Array.from({length: 18}, (_, i) => {
+    const a = (i/18) * Math.PI * 2;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    return `<line x1="0" y1="0" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#f3c0cf" stroke-width="1.6" stroke-linecap="round"/>`;
+  }).join('');
+  return `<g transform="translate(${cx} ${cy})">
+    ${rays}
+    <circle cx="0" cy="0" r="${r*0.4}" fill="#f3a5d0"/>
+    <circle cx="0" cy="0" r="${r*0.2}" fill="#fff"/>
+  </g>`;
+}
+
+/* --- Hydrangea / 绣球花: rounded ovate leaves, spherical clusters of 4-petal florets --- */
+function drawHydrangea(stageIdx, harvestCount){
+  if (stageIdx === 1) {
+    return `
+      <path d="M 120 200 L 120 176" stroke="#4a7d4a" stroke-width="2.4" fill="none"/>
+      <ellipse cx="112" cy="178" rx="6" ry="3.5" fill="#6ba050" stroke="#4a7d4a" stroke-width="1" transform="rotate(-20 112 178)"/>
+      <ellipse cx="128" cy="178" rx="6" ry="3.5" fill="#6ba050" stroke="#4a7d4a" stroke-width="1" transform="rotate(20 128 178)"/>
+    `;
+  }
+  if (stageIdx === 2) {
+    return `
+      <path d="M 120 200 L 120 156" stroke="#4a7d4a" stroke-width="2.8" fill="none"/>
+      ${hydrangeaLeaf(100, 170, -30)}
+      ${hydrangeaLeaf(140, 170, 30)}
+      ${hydrangeaLeaf(120, 156, 0)}
+    `;
+  }
+  if (stageIdx === 3) {
+    return `
+      <path d="M 120 200 L 120 140" stroke="#4a7d4a" stroke-width="3" fill="none"/>
+      ${hydrangeaLeaf(96, 172, -34)}
+      ${hydrangeaLeaf(144, 172, 34)}
+      ${hydrangeaLeaf(100, 150, -22)}
+      ${hydrangeaLeaf(140, 150, 22)}
+      ${hydrangeaLeaf(120, 140, 0)}
+    `;
+  }
+  if (stageIdx === 4) {
+    return `
+      <path d="M 120 200 L 120 128" stroke="#4a7d4a" stroke-width="3.2" fill="none"/>
+      ${hydrangeaLeaf(92, 172, -38)}
+      ${hydrangeaLeaf(148, 172, 38)}
+      ${hydrangeaLeaf(98, 150, -24)}
+      ${hydrangeaLeaf(142, 150, 24)}
+      ${hydrangeaLeaf(108, 130, -14)}
+      ${hydrangeaLeaf(132, 130, 14)}
+      <!-- small budding ball -->
+      <circle cx="120" cy="120" r="10" fill="#cddeea" stroke="#9ab6c6" stroke-width="1.2"/>
+      ${hydrangeaFloret(116, 116, 2.5)}
+      ${hydrangeaFloret(124, 116, 2.5)}
+      ${hydrangeaFloret(120, 124, 2.5)}
+    `;
+  }
+  // Stage 5 — large blue-purple flower ball of 4-petal florets; extras add more balls.
+  const extras = Array.from({length: harvestCount}, (_, i) => {
+    const angle = (i / Math.max(1, harvestCount)) * Math.PI * 1.6 - 0.3;
+    const x = 120 + Math.cos(angle) * 42;
+    const y = 138 + Math.sin(angle) * 18;
+    return hydrangeaBall(x, y, 11);
+  }).join('');
+  return `
+    <path d="M 120 200 L 120 120" stroke="#4a7d4a" stroke-width="3.2" fill="none"/>
+    ${hydrangeaLeaf(88, 170, -42)}
+    ${hydrangeaLeaf(152, 170, 42)}
+    ${hydrangeaLeaf(94, 148, -26)}
+    ${hydrangeaLeaf(146, 148, 26)}
+    ${hydrangeaLeaf(104, 128, -14)}
+    ${hydrangeaLeaf(136, 128, 14)}
+    ${hydrangeaBall(120, 120, 18)}
+    ${extras}
+  `;
+}
+function hydrangeaLeaf(cx, cy, rot){
+  return `<g transform="translate(${cx} ${cy}) rotate(${rot})">
+    <path d="M -12 0 Q -8 -8 0 -9 Q 8 -8 12 0 Q 8 8 0 9 Q -8 8 -12 0 Z" fill="#6ba050" stroke="#4a7d4a" stroke-width="1"/>
+    <path d="M -10 0 L 10 0" stroke="#4a7d4a" stroke-width="0.7"/>
+    <path d="M -3 -5 L 3 5" stroke="#4a7d4a" stroke-width="0.6" opacity="0.5"/>
+  </g>`;
+}
+function hydrangeaFloret(cx, cy, r){
+  // Tiny 4-petal hydrangea floret.
+  return `<g transform="translate(${cx} ${cy})">
+    <ellipse cx="0" cy="-${r}" rx="${r*0.8}" ry="${r}" fill="#a4b5dc" stroke="#6b7ab0" stroke-width="0.5"/>
+    <ellipse cx="0" cy="${r}" rx="${r*0.8}" ry="${r}" fill="#a4b5dc" stroke="#6b7ab0" stroke-width="0.5"/>
+    <ellipse cx="-${r}" cy="0" rx="${r}" ry="${r*0.8}" fill="#a4b5dc" stroke="#6b7ab0" stroke-width="0.5"/>
+    <ellipse cx="${r}" cy="0" rx="${r}" ry="${r*0.8}" fill="#a4b5dc" stroke="#6b7ab0" stroke-width="0.5"/>
+    <circle cx="0" cy="0" r="${r*0.4}" fill="#f3d388"/>
+  </g>`;
+}
+function hydrangeaBall(cx, cy, r){
+  // Build a ball of little florets tightly packed.
+  const florets = [];
+  const rings = [
+    { count: 1, d: 0 },
+    { count: 6, d: r*0.6 },
+    { count: 10, d: r*0.95 },
+  ];
+  rings.forEach(ring => {
+    for (let i = 0; i < ring.count; i++) {
+      const a = (i / ring.count) * Math.PI * 2;
+      const x = Math.cos(a) * ring.d;
+      const y = Math.sin(a) * ring.d;
+      // Mix two shades of blue/violet for depth.
+      const isAlt = (i % 2 === 0);
+      const fill = isAlt ? '#a4b5dc' : '#b9a0d4';
+      const stroke = isAlt ? '#6b7ab0' : '#8c78a8';
+      const fr = r * 0.28;
+      florets.push(`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">
+        <ellipse cx="0" cy="-${fr.toFixed(1)}" rx="${(fr*0.7).toFixed(1)}" ry="${fr.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>
+        <ellipse cx="0" cy="${fr.toFixed(1)}" rx="${(fr*0.7).toFixed(1)}" ry="${fr.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>
+        <ellipse cx="-${fr.toFixed(1)}" cy="0" rx="${fr.toFixed(1)}" ry="${(fr*0.7).toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>
+        <ellipse cx="${fr.toFixed(1)}" cy="0" rx="${fr.toFixed(1)}" ry="${(fr*0.7).toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>
+        <circle r="${(fr*0.35).toFixed(1)}" fill="#f3d388"/>
+      </g>`);
+    }
+  });
+  return `<g transform="translate(${cx} ${cy})">${florets.join('')}</g>`;
+}
+
+/* --- Blueberry / 蓝莓: oval shiny leaves, clusters of deep-blue berries --- */
+function drawBlueberry(stageIdx, harvestCount){
+  if (stageIdx === 1) {
+    return `
+      <path d="M 120 200 L 120 176" stroke="#5a7344" stroke-width="2.4" fill="none"/>
+      <ellipse cx="114" cy="178" rx="6" ry="3" fill="#7a9b55" stroke="#5a7344" stroke-width="1" transform="rotate(-20 114 178)"/>
+      <ellipse cx="126" cy="178" rx="6" ry="3" fill="#7a9b55" stroke="#5a7344" stroke-width="1" transform="rotate(20 126 178)"/>
+    `;
+  }
+  if (stageIdx === 2) {
+    return `
+      <path d="M 120 200 L 120 156" stroke="#5a7344" stroke-width="2.8" fill="none"/>
+      ${blueberryLeaf(102, 170, -28)}
+      ${blueberryLeaf(138, 170, 28)}
+      ${blueberryLeaf(120, 156, 0)}
+    `;
+  }
+  if (stageIdx === 3) {
+    return `
+      <path d="M 120 200 L 120 142" stroke="#5a7344" stroke-width="3" fill="none"/>
+      ${blueberryLeaf(98, 172, -32)}
+      ${blueberryLeaf(142, 172, 32)}
+      ${blueberryLeaf(102, 152, -20)}
+      ${blueberryLeaf(138, 152, 20)}
+      ${blueberryLeaf(120, 142, 0)}
+    `;
+  }
+  if (stageIdx === 4) {
+    // Small white bell-flowers before berries set.
+    return `
+      <path d="M 120 200 L 120 130" stroke="#5a7344" stroke-width="3.2" fill="none"/>
+      ${blueberryLeaf(94, 172, -36)}
+      ${blueberryLeaf(146, 172, 36)}
+      ${blueberryLeaf(98, 150, -22)}
+      ${blueberryLeaf(142, 150, 22)}
+      ${blueberryLeaf(106, 132, -14)}
+      ${blueberryLeaf(134, 132, 14)}
+      <!-- hanging bell flowers -->
+      <path d="M 106 140 Q 106 148 112 146 Q 110 142 108 140 Z" fill="#f7f2e4" stroke="#b5a888" stroke-width="0.8"/>
+      <path d="M 134 140 Q 134 148 128 146 Q 130 142 132 140 Z" fill="#f7f2e4" stroke="#b5a888" stroke-width="0.8"/>
+      <path d="M 120 122 Q 120 132 126 130 Q 124 126 122 122 Z" fill="#f7f2e4" stroke="#b5a888" stroke-width="0.8"/>
+    `;
+  }
+  // Stage 5 — bushes with berry clusters.
+  const extras = Array.from({length: harvestCount}, (_, i) => {
+    const angle = (i / Math.max(1, harvestCount)) * Math.PI * 1.7 - 0.3;
+    const x = 120 + Math.cos(angle) * 46;
+    const y = 142 + Math.sin(angle) * 18;
+    return blueberryBerry(x, y, 5);
+  }).join('');
+  return `
+    <path d="M 120 200 L 120 122" stroke="#5a7344" stroke-width="3.2" fill="none"/>
+    ${blueberryLeaf(90, 172, -40)}
+    ${blueberryLeaf(150, 172, 40)}
+    ${blueberryLeaf(96, 148, -26)}
+    ${blueberryLeaf(144, 148, 26)}
+    ${blueberryLeaf(106, 126, -14)}
+    ${blueberryLeaf(134, 126, 14)}
+    ${blueberryBerry(104, 150, 5)}
+    ${blueberryBerry(114, 144, 5)}
+    ${blueberryBerry(136, 150, 5)}
+    ${blueberryBerry(126, 144, 5)}
+    ${blueberryBerry(120, 136, 6)}
+    ${extras}
+  `;
+}
+function blueberryLeaf(cx, cy, rot){
+  return `<g transform="translate(${cx} ${cy}) rotate(${rot})">
+    <ellipse cx="0" cy="0" rx="11" ry="5.5" fill="#7a9b55" stroke="#5a7344" stroke-width="1"/>
+    <path d="M -10 0 L 10 0" stroke="#5a7344" stroke-width="0.7"/>
+    <ellipse cx="-3" cy="-1.5" rx="2" ry="1" fill="#a3c477" opacity="0.7"/>
+  </g>`;
+}
+function blueberryBerry(cx, cy, r){
+  return `<g transform="translate(${cx} ${cy})">
+    <circle cx="0" cy="0" r="${r}" fill="#4a6d94" stroke="#2a4968" stroke-width="1"/>
+    <circle cx="-${r*0.35}" cy="-${r*0.4}" r="${r*0.28}" fill="#7b96b8" opacity="0.8"/>
+    <!-- blossom-end star -->
+    <path d="M -1.8 ${r*0.6} L 0 ${r*0.85} L 1.8 ${r*0.6} L 1 ${r*0.35} L -1 ${r*0.35} Z" fill="#2a4968" opacity="0.6"/>
+  </g>`;
+}
+
+/* --- Orange / 橘子: glossy round leaves, round orange fruits --- */
+function drawOrange(stageIdx, harvestCount){
+  if (stageIdx === 1) {
+    return `
+      <path d="M 120 200 L 120 174" stroke="#6b4a2e" stroke-width="2.5" fill="none"/>
+      <ellipse cx="114" cy="176" rx="5" ry="3" fill="#5a8a3a" stroke="#3a6a28" stroke-width="1" transform="rotate(-25 114 176)"/>
+      <ellipse cx="126" cy="176" rx="5" ry="3" fill="#5a8a3a" stroke="#3a6a28" stroke-width="1" transform="rotate(25 126 176)"/>
+    `;
+  }
+  if (stageIdx === 2) {
+    return `
+      <path d="M 120 200 L 120 154" stroke="#6b4a2e" stroke-width="3" fill="none"/>
+      ${orangeLeaf(102, 168, -28)}
+      ${orangeLeaf(138, 168, 28)}
+      ${orangeLeaf(112, 156, -10)}
+      ${orangeLeaf(128, 156, 10)}
+    `;
+  }
+  if (stageIdx === 3) {
+    return `
+      <path d="M 120 200 L 120 136" stroke="#6b4a2e" stroke-width="3.2" fill="none"/>
+      ${orangeLeaf(96, 170, -34)}
+      ${orangeLeaf(144, 170, 34)}
+      ${orangeLeaf(102, 150, -22)}
+      ${orangeLeaf(138, 150, 22)}
+      ${orangeLeaf(110, 132, -10)}
+      ${orangeLeaf(130, 132, 10)}
+    `;
+  }
+  if (stageIdx === 4) {
+    // Small white orange blossoms before the fruit forms.
+    return `
+      <path d="M 120 200 L 120 120" stroke="#6b4a2e" stroke-width="3.4" fill="none"/>
+      ${orangeLeaf(92, 170, -40)}
+      ${orangeLeaf(148, 170, 40)}
+      ${orangeLeaf(98, 150, -25)}
+      ${orangeLeaf(142, 150, 25)}
+      ${orangeLeaf(106, 128, -12)}
+      ${orangeLeaf(134, 128, 12)}
+      ${orangeBlossom(108, 142)}
+      ${orangeBlossom(132, 142)}
+      ${orangeBlossom(120, 120)}
+    `;
+  }
+  // Stage 5 — rounded tree shape with orange fruit hanging.
+  const extras = Array.from({length: harvestCount}, (_, i) => {
+    const angle = (i / Math.max(1, harvestCount)) * Math.PI * 1.7 - 0.4;
+    const x = 120 + Math.cos(angle) * 44;
+    const y = 136 + Math.sin(angle) * 20;
+    return orangeFruit(x, y, 9);
+  }).join('');
+  return `
+    <path d="M 120 200 L 120 114" stroke="#6b4a2e" stroke-width="3.4" fill="none"/>
+    <ellipse cx="120" cy="138" rx="48" ry="32" fill="#6ba050" stroke="#4a7d4a" stroke-width="1.5" opacity="0.95"/>
+    ${orangeLeaf(86, 168, -42)}
+    ${orangeLeaf(154, 168, 42)}
+    ${orangeLeaf(92, 146, -26)}
+    ${orangeLeaf(148, 146, 26)}
+    ${orangeLeaf(104, 124, -14)}
+    ${orangeLeaf(136, 124, 14)}
+    ${orangeFruit(100, 146, 8)}
+    ${orangeFruit(140, 146, 8)}
+    ${orangeFruit(120, 124, 9)}
+    ${extras}
+  `;
+}
+function orangeLeaf(cx, cy, rot){
+  return `<g transform="translate(${cx} ${cy}) rotate(${rot})">
+    <ellipse cx="0" cy="0" rx="11" ry="5" fill="#5a8a3a" stroke="#3a6a28" stroke-width="1"/>
+    <path d="M -10 0 L 10 0" stroke="#3a6a28" stroke-width="0.7"/>
+  </g>`;
+}
+function orangeFruit(cx, cy, r){
+  return `<g transform="translate(${cx} ${cy})">
+    <circle cx="0" cy="0" r="${r}" fill="#f2a343" stroke="#c37a22" stroke-width="1.2"/>
+    <circle cx="-${r*0.4}" cy="-${r*0.4}" r="${r*0.3}" fill="#f7c574" opacity="0.8"/>
+    <path d="M -2 -${r*0.95} L 0 -${r*1.1} L 2 -${r*0.95}" fill="none" stroke="#5a7344" stroke-width="1.2" stroke-linecap="round"/>
+    <!-- tiny leaf on top -->
+    <ellipse cx="0" cy="-${r*1.05}" rx="3" ry="1.6" fill="#5a8a3a"/>
+  </g>`;
+}
+function orangeBlossom(cx, cy){
+  return `<g transform="translate(${cx} ${cy})">
+    ${Array.from({length:5}, (_,i)=>{
+      const a = (i/5)*Math.PI*2;
+      return `<ellipse cx="${(Math.cos(a)*2.5).toFixed(1)}" cy="${(Math.sin(a)*2.5).toFixed(1)}" rx="2.4" ry="1.4" fill="#fff4e6" stroke="#e8c98a" stroke-width="0.6" transform="rotate(${(i*72).toFixed(0)})"/>`;
+    }).join('')}
+    <circle cx="0" cy="0" r="1.2" fill="#f3d388"/>
+  </g>`;
+}
+
+/* --- Eggplant / 茄子: big purple-veined leaves, pendulous deep-purple fruits --- */
+function drawEggplant(stageIdx, harvestCount){
+  if (stageIdx === 1) {
+    return `
+      <path d="M 120 200 L 120 174" stroke="#7a4f8f" stroke-width="2.4" fill="none"/>
+      <path d="M 120 178 Q 106 170 100 182 Q 112 183 120 180" fill="#7a9b55" stroke="#5a7344" stroke-width="1"/>
+      <path d="M 120 178 Q 134 170 140 182 Q 128 183 120 180" fill="#7a9b55" stroke="#5a7344" stroke-width="1"/>
+    `;
+  }
+  if (stageIdx === 2) {
+    return `
+      <path d="M 120 200 L 120 156" stroke="#7a4f8f" stroke-width="2.8" fill="none"/>
+      ${eggplantLeaf(100, 170, -30)}
+      ${eggplantLeaf(140, 170, 30)}
+      ${eggplantLeaf(120, 156, 0)}
+    `;
+  }
+  if (stageIdx === 3) {
+    return `
+      <path d="M 120 200 L 120 140" stroke="#7a4f8f" stroke-width="3" fill="none"/>
+      ${eggplantLeaf(96, 170, -34)}
+      ${eggplantLeaf(144, 170, 34)}
+      ${eggplantLeaf(102, 148, -22)}
+      ${eggplantLeaf(138, 148, 22)}
+      ${eggplantLeaf(120, 140, 0)}
+    `;
+  }
+  if (stageIdx === 4) {
+    // Star-shaped purple blossoms, a signal of fruits soon.
+    return `
+      <path d="M 120 200 L 120 126" stroke="#7a4f8f" stroke-width="3.2" fill="none"/>
+      ${eggplantLeaf(92, 172, -40)}
+      ${eggplantLeaf(148, 172, 40)}
+      ${eggplantLeaf(98, 148, -24)}
+      ${eggplantLeaf(142, 148, 24)}
+      ${eggplantLeaf(108, 128, -12)}
+      ${eggplantLeaf(132, 128, 12)}
+      ${eggplantBlossom(110, 140)}
+      ${eggplantBlossom(130, 140)}
+      ${eggplantBlossom(120, 122)}
+    `;
+  }
+  // Stage 5 — hanging aubergines.
+  const extras = Array.from({length: harvestCount}, (_, i) => {
+    const angle = (i / Math.max(1, harvestCount)) * Math.PI * 1.7 - 0.4;
+    const x = 120 + Math.cos(angle) * 46;
+    const y = 144 + Math.sin(angle) * 18;
+    return eggplantFruit(x, y);
+  }).join('');
+  return `
+    <path d="M 120 200 L 120 118" stroke="#7a4f8f" stroke-width="3.4" fill="none"/>
+    ${eggplantLeaf(86, 172, -44)}
+    ${eggplantLeaf(154, 172, 44)}
+    ${eggplantLeaf(94, 148, -26)}
+    ${eggplantLeaf(146, 148, 26)}
+    ${eggplantLeaf(104, 124, -14)}
+    ${eggplantLeaf(136, 124, 14)}
+    ${eggplantFruit(104, 152)}
+    ${eggplantFruit(136, 152)}
+    ${eggplantFruit(120, 128)}
+    ${extras}
+  `;
+}
+function eggplantLeaf(cx, cy, rot){
+  return `<g transform="translate(${cx} ${cy}) rotate(${rot})">
+    <path d="M -13 0 Q -10 -8 0 -9 Q 10 -8 13 0 Q 10 8 0 9 Q -10 8 -13 0 Z" fill="#6ba050" stroke="#4a7d4a" stroke-width="1"/>
+    <path d="M -11 0 L 11 0" stroke="#7a4f8f" stroke-width="0.8"/>
+    <path d="M 0 -6 L 0 6" stroke="#7a4f8f" stroke-width="0.6"/>
+  </g>`;
+}
+function eggplantFruit(cx, cy){
+  return `<g transform="translate(${cx} ${cy})">
+    <!-- pear-like purple body -->
+    <path d="M -5 -4 Q -8 2 -5 10 Q 0 14 5 10 Q 8 2 5 -4 Q 0 -6 -5 -4 Z" fill="#6a3d87" stroke="#3f1f5a" stroke-width="1.2"/>
+    <ellipse cx="-2.5" cy="0" rx="1.4" ry="4" fill="#a07ac0" opacity="0.7"/>
+    <!-- green calyx -->
+    <path d="M -5 -5 L -2 -9 L 0 -6 L 2 -9 L 5 -5 Z" fill="#5a7344" stroke="#3a5a2a" stroke-width="0.8"/>
+    <path d="M 0 -9 L 0 -12" stroke="#5a7344" stroke-width="1.2" stroke-linecap="round"/>
+  </g>`;
+}
+function eggplantBlossom(cx, cy){
+  return `<g transform="translate(${cx} ${cy})">
+    ${Array.from({length:5}, (_,i)=>{
+      const a = (i/5)*Math.PI*2 - Math.PI/2;
+      const x = Math.cos(a) * 3.5;
+      const y = Math.sin(a) * 3.5;
+      return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="3" ry="1.6" fill="#b9a0d4" stroke="#7a4f8f" stroke-width="0.6" transform="rotate(${(i*72).toFixed(0)})"/>`;
+    }).join('')}
+    <circle cx="0" cy="0" r="1.4" fill="#f3d388"/>
+  </g>`;
+}
+
 function shade(hex, percent) {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.max(0, Math.min(255, (n >> 16) + percent * 2.55));
@@ -2476,18 +3155,30 @@ function buyShopItem(id) {
   toast(T(`获得：${item.icon} ${item.name}！请无罪恶感地享受 🌷`, `Got: ${item.icon} ${item.name}! Enjoy guilt-free 🌷`), '🎁');
 }
 
+/* Return a YYYY-MM-DD key for "yesterday" using local time — matches the
+   same local-midnight logic as todayStr() so chart and sleep keys line up. */
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function logSleep(type) {
-  const t = todayStr();
-  state.sleep[t] = type;
+  // The user is reporting when they went to bed LAST NIGHT, so the record
+  // belongs to yesterday's date, not today's.
+  const y = yesterdayStr();
+  state.sleep[y] = type;
   const bonus = { before23: 30, before24: 15, before1: 5, late: 0 };
   const xp = bonus[type];
   if (xp > 0) {
     state.pet.xp += xp;
     state.stars += Math.floor(xp / 2);
     state.dims.health += Math.ceil(xp / 3);
-    toast(T(`今晚记录完成！+${xp}xp +${Math.floor(xp/2)}✨`, `Sleep logged! +${xp}xp +${Math.floor(xp/2)}✨`), '🌙');
+    toast(T(`昨晚记录完成！+${xp}xp +${Math.floor(xp/2)}✨`, `Last-night sleep logged! +${xp}xp +${Math.floor(xp/2)}✨`), '🌙');
   } else {
-    toast(T('记录了。熬夜的话，明天对自己温柔一点 🫂', 'Logged. If it’s a late one, be gentle with yourself tomorrow 🫂'), '🌙');
+    toast(T('记录了。熬夜的话，今天对自己温柔一点 🫂', 'Logged. If it was a late one, be gentle with yourself today 🫂'), '🌙');
   }
   const newStage = getPetStage();
   if (newStage > state.pet.stage) {
@@ -2500,14 +3191,37 @@ function logSleep(type) {
 function saveJournal() {
   const txt = document.getElementById('journalInput').value.trim();
   if (!txt) return;
-  state.journal.unshift({ date: todayStr(), time: new Date().toLocaleTimeString(getLang()==='en'?'en-US':'zh-CN', {hour:'2-digit', minute:'2-digit'}), text: txt });
+  // Parse tags from optional tag input — split on commas, Chinese commas, or whitespace.
+  const tagEl = document.getElementById('journalTagInput');
+  const rawTags = tagEl ? (tagEl.value || '') : '';
+  const tags = rawTags
+    .split(/[,，、\s]+/)
+    .map(s => s.trim().replace(/^#/, ''))
+    .filter(Boolean)
+    .slice(0, 8);
+  state.journal.unshift({
+    id: uid(),
+    date: todayStr(),
+    time: new Date().toLocaleTimeString(getLang()==='en'?'en-US':'zh-CN', {hour:'2-digit', minute:'2-digit'}),
+    text: txt,
+    tags,
+  });
   document.getElementById('journalInput').value = '';
+  if (tagEl) tagEl.value = '';
   state.pet.xp += 5;
   state.stars += 3;
   state.dims.wisdom += 2;
   save();
   renderAll();
   toast(T('记录下来了！+5xp', 'Saved! +5xp'), '✎');
+}
+
+function deleteJournalEntry(id) {
+  if (!confirm(T('删除这条记录？','Delete this note?'))) return;
+  // Support legacy entries that don't have an id: match on date+time+text fallback.
+  state.journal = state.journal.filter(j => (j.id ? j.id !== id : true));
+  save();
+  renderJournal();
 }
 
 function todayNotOK() {
@@ -2529,14 +3243,16 @@ function todayNotOK() {
   };
   const arr = en ? variants.en : variants.zh;
   const pick = arr[Math.floor(Math.random()*arr.length)];
-  // Paint the seed portrait inside the modal (bigger & centered, with sparkles + cheeks)
-  const svg = buildComfortSeedSvg();
+  // Paint the CURRENT plant (not a seed) inside the modal — with happy mood and
+  // a floating heart overlay so the user sees their pet smiling at them.
   const seedHost = document.getElementById('comfortSeed');
-  seedHost.innerHTML = svg;
+  seedHost.innerHTML = buildComfortPetSvg();
   document.getElementById('comfortTitle').textContent = pick.title;
   document.getElementById('comfortBody').textContent = pick.body;
   document.getElementById('comfortHugBtn').textContent = pick.btn;
   document.getElementById('comfortCloseBtn').textContent = en ? 'Close' : '关掉';
+  // Make sure the gift-box button exists & is wired up (inserted once).
+  ensureComfortGiftButton();
   document.getElementById('comfortModal').classList.add('active');
   // Release a few floating hearts inside the modal for warm feedback
   releaseModalHearts(document.getElementById('comfortSparkles'));
@@ -2546,6 +3262,91 @@ function todayNotOK() {
   state.lastCompletionDate = t;
   save();
 }
+
+/* Build an SVG of the user's current plant at its current stage, always
+   smiling, with a little floating heart above it. Used in the comfort modal. */
+function buildComfortPetSvg(){
+  const stageIdx = (typeof getPetStage === 'function') ? getPetStage() : 0;
+  // Force happy mood so the pet is always smiling in this moment of comfort.
+  const inner = (typeof getPetSvg === 'function') ? getPetSvg(stageIdx, 'happy') : '';
+  // Wrap with a sized container + a floating heart overlay.
+  return `<div style="position:relative; width:160px; height:160px; display:flex; align-items:center; justify-content:center;">
+    <div style="width:160px; height:160px; transform:scale(0.72); transform-origin:center center;">${inner}</div>
+    <div style="position:absolute; top:-6px; right:10px; font-size:26px; filter: drop-shadow(0 2px 0 rgba(215,122,176,.35)); animation: hgHeartFloat 1.6s ease-in-out infinite;">💗</div>
+  </div>`;
+}
+
+/* Inject the gift-box button once (next to the two existing buttons). Uses
+   a pink gift-box emoji and no text, matching the user's spec. */
+function ensureComfortGiftButton(){
+  if (document.getElementById('comfortGiftBtn')) return;
+  const hugBtn = document.getElementById('comfortHugBtn');
+  if (!hugBtn) return;
+  const btn = document.createElement('button');
+  btn.id = 'comfortGiftBtn';
+  btn.title = getLang()==='en' ? 'Random mini gift' : '随机小礼盒';
+  btn.setAttribute('aria-label', btn.title);
+  btn.style.cssText = 'background: linear-gradient(135deg,#f3c0cf,#f3a5d0); color:#fff; border:none; border-radius:999px; padding:10px 18px; font-family:inherit; font-size:18px; cursor:pointer; box-shadow:0 3px 0 #d67ab0; display:inline-flex; align-items:center; justify-content:center;';
+  btn.innerHTML = '🎀';
+  btn.onclick = openComfortGiftModal;
+  hugBtn.parentNode.insertBefore(btn, hugBtn);
+}
+
+/* ==== Relaxation tip mini modal (triggered by the pink gift box button) ==== */
+const COMFORT_TIPS = [
+  { zh: { title:'一分钟深呼吸', body:'慢慢吸气 4 秒，屏住 4 秒，呼气 6 秒。再来几次就好啦。' },
+    en: { title:'One-minute breath', body:'Breathe in for 4 seconds, hold 4, out for 6. Repeat a few times.' } },
+  { zh: { title:'站起来倒杯水', body:'离开屏幕，去给自己倒一杯水。小小的照顾自己的动作。' },
+    en: { title:'Stand up & grab water', body:'Step away from the screen and pour yourself a glass of water.' } },
+  { zh: { title:'出门散步 10 分钟', body:'戴上耳机，去楼下或小区走一圈。不用走远，换换空气。' },
+    en: { title:'10-minute walk', body:'Put on headphones and take a short loop outside — just change the air.' } },
+  { zh: { title:'闭眼冥想 1 分钟', body:'闭上眼，注意呼吸就好。走神了也没关系，轻轻拉回来。' },
+    en: { title:'1-minute meditation', body:'Close your eyes and follow your breath. Drifting is fine — gently come back.' } },
+  { zh: { title:'听一首喜欢的歌', body:'挑一首能让你放松的歌，整首认真听完。什么都不做。' },
+    en: { title:'Play one favorite song', body:'Pick a song that relaxes you and listen to the whole thing, doing nothing else.' } },
+  { zh: { title:'唱一首歌', body:'随便哼一段，或者大声唱一首。身体的震动本身就是一种放松。' },
+    en: { title:'Sing a song', body:'Hum or sing out loud — the vibration itself is relaxing.' } },
+  { zh: { title:'念一段绕口令', body:'试试：「四是四，十是十，十四是十四，四十是四十。」慢慢念，越快越容易笑。' },
+    en: { title:'Tongue twister', body:'Try: "She sells seashells by the seashore." Say it slowly, then speed up.' } },
+  { zh: { title:'一个小脑筋急转弯', body:'一只小鸟飞进了厨房，却没飞出去。为什么？\n（答：它还不想走。 🐦 只要你觉得合理就都算对。）' },
+    en: { title:'A tiny brain teaser', body:'A bird flew into a kitchen but never flew out. Why?\n(Any answer that makes you smile counts — maybe it just wanted to stay. 🐦)' } },
+  { zh: { title:'拉伸一下肩膀', body:'耸肩 10 次，慢慢转动脖子。小小的动作就能让身体舒服很多。' },
+    en: { title:'Shoulder stretch', body:'Shrug 10 times, then slowly roll your neck. Tiny moves, big relief.' } },
+  { zh: { title:'给自己一个拥抱', body:'把双手交叉抱在胸前，轻轻拍拍自己的手臂。今天辛苦了。' },
+    en: { title:'Self-hug', body:'Cross your arms over your chest and gently pat your shoulders. You did enough today.' } },
+  { zh: { title:'望向窗外 30 秒', body:'把视线从屏幕上移开，望向远处或窗外。眼睛也需要休息。' },
+    en: { title:'Look out the window', body:'Let your eyes rest on something far away for 30 seconds.' } },
+  { zh: { title:'写下一件小小的好事', body:'今天有什么小小的、但让你觉得不错的瞬间？随手写一句。' },
+    en: { title:'Note one small good thing', body:'What tiny moment felt okay today? Jot down one line.' } },
+];
+let _currentTipIdx = -1;
+function openComfortGiftModal(){
+  _currentTipIdx = Math.floor(Math.random() * COMFORT_TIPS.length);
+  const en = getLang()==='en';
+  const tip = COMFORT_TIPS[_currentTipIdx][en ? 'en' : 'zh'];
+  document.getElementById('comfortTipTitle').textContent = '🎀 ' + tip.title;
+  document.getElementById('comfortTipBody').textContent = tip.body;
+  document.getElementById('comfortTipDo').textContent = en ? "Let's do it · +10xp" : '去做 · +10xp';
+  document.getElementById('comfortTipSkip').textContent = en ? 'Not now' : '我不想做';
+  document.getElementById('comfortTipModal').classList.add('active');
+}
+function closeComfortTipModal(){
+  document.getElementById('comfortTipModal').classList.remove('active');
+}
+function comfortTipDo(){
+  state.pet.xp = (state.pet.xp || 0) + 10;
+  // Keep harvest/stage in sync after a direct XP nudge.
+  if (typeof syncHarvestAfterXpChange === 'function') syncHarvestAfterXpChange();
+  save();
+  renderAll();
+  closeComfortTipModal();
+  toast(T('谢谢你愿意试一下~ +10xp 💗', 'Thanks for trying — +10xp 💗'), '🌸');
+}
+function comfortTipSkip(){
+  closeComfortTipModal();
+  // No penalty — just a little heart for being honest.
+  toast(T('没关系，给你一颗心~ 💗', 'No worries — here\'s a heart 💗'), '💗');
+}
 function closeComfortModal(){
   document.getElementById('comfortModal').classList.remove('active');
 }
@@ -2553,7 +3354,11 @@ function buildComfortSeedSvg(){
   // Use the same seed-face aesthetic as drawSeed(), sized for the modal (160px).
   // Species seed color matches the user's current pet so it feels personal.
   const species = (typeof getSpecies === 'function') ? getSpecies() : 'edamame';
-  const seedColor = { edamame:'#c7b186', rose:'#8a5c3a', tomato:'#b38050', cactus:'#9a7c52', monstera:'#7c6142' }[species] || '#c7b186';
+  const seedColor = {
+    edamame:'#c7b186', rose:'#f3c0cf', tomato:'#d9533a', cactus:'#9a7c52', monstera:'#3e6b44',
+    hyacinth:'#b9a0d4', mimosa:'#f3c0cf', hydrangea:'#a9cbd8',
+    blueberry:'#5a6d94', orange:'#e8a45a', eggplant:'#7a4f8f',
+  }[species] || '#c7b186';
   const dark = (typeof shade === 'function') ? shade(seedColor, -20) : '#8a6a40';
   return `<svg viewBox="0 0 160 160" width="160" height="160" xmlns="http://www.w3.org/2000/svg">
     <!-- tiny hug arms (little leaf-like sleeves) -->
@@ -2631,7 +3436,8 @@ function renderAll() {
   renderShop();
   renderCards();
   renderJournal();
-  renderWeekChart();
+  // The week chart panel was merged into the mood panel as a dual-y line
+  // chart. renderMood() now takes care of drawing it.
   renderSleepStatus();
 }
 
@@ -2661,7 +3467,11 @@ function renderPet() {
   // Species badge
   if (boxOpen) {
     const info = speciesInfo();
-    const emoji = { edamame:'🫛', rose:'🌹', tomato:'🍅', cactus:'🌵', monstera:'🌿' }[getSpecies()];
+    const emoji = {
+      edamame:'🫛', rose:'🌹', tomato:'🍅', cactus:'🌵', monstera:'🌿',
+      hyacinth:'💜', mimosa:'🌸', hydrangea:'💙',
+      blueberry:'🫐', orange:'🍊', eggplant:'🍆',
+    }[getSpecies()] || '🌱';
     document.getElementById('speciesBadge').textContent = `${emoji} ${getLang()==='en'?info.enName:info.zhName}`;
   } else {
     document.getElementById('speciesBadge').textContent = '🎁 ? ? ?';
@@ -2760,11 +3570,19 @@ function renderTasks() {
     `;
   };
 
-  const homeVisible = state.tasks.filter(task => {
+  /* Sort so undone tasks appear first and completed (done) tasks sink to the
+     bottom — makes unfinished work the first thing the eye lands on. */
+  const sortByDone = (arr) => arr.slice().sort((a, b) => {
+    const aDone = todayDone.includes(a.id) ? 1 : 0;
+    const bDone = todayDone.includes(b.id) ? 1 : 0;
+    return aDone - bDone;
+  });
+
+  const homeVisible = sortByDone(state.tasks.filter(task => {
     if (task.type === 'daily') return true;
     if (task.type === 'once' && !todayDone.includes(task.id)) return true;
     return false;
-  }).slice(0, 8);
+  })).slice(0, 8);
 
   document.getElementById('homeTaskList').innerHTML = homeVisible.length
     ? homeVisible.map(renderTaskRow).join('')
@@ -2774,20 +3592,22 @@ function renderTasks() {
   const totalDaily = state.tasks.filter(t2 => t2.type === 'daily').length;
   document.getElementById('todayProgress').textContent = `${doneCount}/${totalDaily}`;
 
-  const onceTasks = state.tasks.filter(task => task.type === 'once');
-  const dailyTasks = state.tasks.filter(task => task.type === 'daily');
+  const onceTasks = sortByDone(state.tasks.filter(task => task.type === 'once'));
+  const dailyTasks = sortByDone(state.tasks.filter(task => task.type === 'daily'));
+
+  const rowWithDelete = (task) => `
+    <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+      <div style="flex:1;">${renderTaskRow(task)}</div>
+      <button class="quick-btn" onclick="deleteTask('${task.id}')" style="padding: 6px 10px; font-size: 12px;">🗑</button>
+    </div>
+  `;
 
   document.getElementById('oneTimeList').innerHTML = onceTasks.length
-    ? onceTasks.map(task => `${renderTaskRow(task)}`).join('')
+    ? onceTasks.map(rowWithDelete).join('')
     : `<div class="empty">${T('还没有一次性任务','No one-time tasks yet')}</div>`;
 
   document.getElementById('dailyList').innerHTML = dailyTasks.length
-    ? dailyTasks.map(task => `
-        <div style="display: flex; align-items: center; gap: 8px; position: relative;">
-          <div style="flex:1;">${renderTaskRow(task)}</div>
-          <button class="quick-btn" onclick="deleteTask('${task.id}')" style="padding: 6px 10px; font-size: 12px;">🗑</button>
-        </div>
-      `).join('')
+    ? dailyTasks.map(rowWithDelete).join('')
     : `<div class="empty">${T('还没有每日任务','No daily tasks yet')}</div>`;
 }
 
@@ -2920,69 +3740,257 @@ function renderCards() {
   document.getElementById('cardsGrid').innerHTML = html;
 }
 
+/* Set of currently-active journal tag filters. Empty = show everything.
+   Each click on a tag toggles its membership; multiple active tags OR together. */
+let _journalTagFilter = new Set();
+function toggleJournalTagFilter(tag){
+  if (_journalTagFilter.has(tag)) _journalTagFilter.delete(tag);
+  else _journalTagFilter.add(tag);
+  renderJournal();
+}
 function renderJournal() {
   renderMood();
-  const html = state.journal.slice(0, 20).map(j => `
-    <div class="insight-card" style="margin-bottom: 10px;">
-      <div style="font-family: 'Caveat', cursive; color: var(--peach-deep); margin-bottom: 6px; font-size: 14px;">${j.date} ${j.time || ''}</div>
-      ${escapeHtml(j.text).replace(/\n/g, '<br>')}
-    </div>
-  `).join('');
-  document.getElementById('journalList').innerHTML = html || `<div class="empty">${T('还没有记录过什么，试试写一句？','Nothing written yet — try a line?')}</div>`;
+  // Back-fill ids for legacy entries so the delete button has something to target.
+  let mutated = false;
+  state.journal.forEach(j => { if (!j.id) { j.id = uid(); mutated = true; } });
+  if (mutated) save();
+
+  // Collect all distinct tags (by usage count, desc) from every entry.
+  const tagCounts = {};
+  state.journal.forEach(j => {
+    (Array.isArray(j.tags) ? j.tags : []).forEach(t => {
+      if (!t) return;
+      tagCounts[t] = (tagCounts[t] || 0) + 1;
+    });
+  });
+  const allTags = Object.keys(tagCounts).sort((a,b) => tagCounts[b] - tagCounts[a]);
+  // Drop stale filter tags that no longer exist on any entry.
+  _journalTagFilter.forEach(t => { if (!tagCounts[t]) _journalTagFilter.delete(t); });
+
+  const barEl = document.getElementById('journalTagBar');
+  if (barEl) {
+    if (!allTags.length) {
+      barEl.innerHTML = '';
+      barEl.style.display = 'none';
+    } else {
+      barEl.style.display = 'flex';
+      const pills = allTags.map(t => {
+        const on = _journalTagFilter.has(t);
+        const bg = on ? 'var(--peach)' : 'var(--cream-2)';
+        const color = on ? '#fff' : 'var(--ink-soft)';
+        const attr = t.replace(/"/g, '&quot;');
+        return `<button data-journal-tag="${escapeHtml(attr)}" style="background:${bg}; color:${color}; border:none; border-radius:999px; padding:4px 12px; font-family:inherit; font-size:12px; cursor:pointer;">#${escapeHtml(t)}<span style="opacity:.6; margin-left:4px;">${tagCounts[t]}</span></button>`;
+      }).join('');
+      const clearBtn = _journalTagFilter.size
+        ? `<button onclick="_journalTagFilter.clear(); renderJournal();" style="background:transparent; color:var(--ink-soft); border:1.5px dashed var(--cream-2); border-radius:999px; padding:3px 10px; font-family:inherit; font-size:12px; cursor:pointer;">${T('清除筛选','Clear')}</button>`
+        : '';
+      barEl.innerHTML = pills + clearBtn;
+      barEl.querySelectorAll('button[data-journal-tag]').forEach(btn => {
+        btn.addEventListener('click', () => toggleJournalTagFilter(btn.getAttribute('data-journal-tag')));
+      });
+    }
+  }
+
+  // OR filter: entry matches if it has ANY of the active tags. Empty = show all.
+  const filterActive = _journalTagFilter.size > 0;
+  const filtered = filterActive
+    ? state.journal.filter(j => (Array.isArray(j.tags) ? j.tags : []).some(t => _journalTagFilter.has(t)))
+    : state.journal;
+
+  const html = filtered.slice(0, 20).map(j => {
+    const tags = Array.isArray(j.tags) ? j.tags : [];
+    const tagsHtml = tags.length
+      ? `<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">${tags.map(t => {
+          const active = _journalTagFilter.has(t);
+          const bg = active ? 'var(--peach)' : 'var(--cream-2)';
+          const color = active ? '#fff' : 'var(--ink-soft)';
+          const attr = t.replace(/"/g, '&quot;');
+          return `<span data-journal-inline-tag="${escapeHtml(attr)}" style="background:${bg}; color:${color}; padding:3px 10px; border-radius:999px; font-size:12px; cursor:pointer;">#${escapeHtml(t)}</span>`;
+        }).join('')}</div>`
+      : '';
+    return `
+      <div class="insight-card" style="margin-bottom: 10px; position: relative;">
+        <button onclick="deleteJournalEntry('${j.id}')" title="${T('删除','Delete')}"
+          style="position:absolute; top:8px; right:10px; background:none; border:none; color:var(--ink-soft); font-size:16px; cursor:pointer; opacity:.5; line-height:1;">×</button>
+        <div style="font-family: 'Caveat', cursive; color: var(--peach-deep); margin-bottom: 6px; font-size: 14px; padding-right:22px;">${j.date} ${j.time || ''}</div>
+        <div style="padding-right:22px;">${escapeHtml(j.text).replace(/\n/g, '<br>')}</div>
+        ${tagsHtml}
+      </div>
+    `;
+  }).join('');
+  const listEl = document.getElementById('journalList');
+  listEl.innerHTML = html || (filterActive
+    ? `<div class="empty">${T('没有匹配这些标签的记录','No entries match these tags')}</div>`
+    : `<div class="empty">${T('还没有记录过什么，试试写一句？','Nothing written yet — try a line?')}</div>`);
+  // Make inline tags on each card clickable as filter toggles too.
+  listEl.querySelectorAll('[data-journal-inline-tag]').forEach(el => {
+    el.addEventListener('click', () => toggleJournalTagFilter(el.getAttribute('data-journal-inline-tag')));
+  });
 }
 
-function renderWeekChart() {
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0,10);
-    days.push({
+/* Return local YYYY-MM-DD for a Date object — matches todayStr()'s logic. */
+function _localKey(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+/* Map a stored sleep label ('before23' | 'before24' | 'before1' | 'late')
+   to a 4-tier value where higher = earlier/healthier. Missing = null. */
+const SLEEP_TIERS = { before23: 4, before24: 3, before1: 2, late: 1 };
+/* Dual-axis line chart for the mood panel:
+   - x axis: days in the selected range (week/month/year)
+   - left y: tasks completed that day (count)
+   - right y: sleep tier (1..4) with 4 = 23点前 on top, 1 = 更晚 on bottom
+   Rendered as inline SVG so there's no extra dependency. */
+function renderActivityChart(range){
+  const host = document.getElementById('activityChart');
+  if (!host) return;
+  const r = range || _moodRange || 'week';
+  const days = r === 'week' ? 7 : r === 'month' ? 30 : 365;
+  // Build the list of day buckets (oldest → newest).
+  const items = [];
+  const now = new Date(); now.setHours(0,0,0,0);
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now); d.setDate(now.getDate() - i);
+    const key = _localKey(d);
+    items.push({
       key,
-      label: (getLang()==='en' ? ['S','M','T','W','T','F','S'] : ['日','一','二','三','四','五','六'])[d.getDay()],
-      count: (state.completions[key] || []).length,
-      sleep: state.sleep[key]
+      date: d,
+      count: (state.completions && state.completions[key] ? state.completions[key].length : 0),
+      sleep: state.sleep && state.sleep[key] ? state.sleep[key] : null,
     });
   }
-  const maxCount = Math.max(...days.map(d => d.count), 3);
-  const html = `
-    <div style="display: flex; gap: 8px; align-items: flex-end; height: 120px; padding: 0 4px;">
-      ${days.map(d => {
-        const h = (d.count / maxCount) * 100;
-        const sleepIcon = d.sleep === 'before23' ? '⭐' : d.sleep === 'before24' ? '🙂' : d.sleep === 'before1' ? '😐' : d.sleep === 'late' ? '🌙' : '';
-        return `
-          <div style="flex:1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
-            <div style="font-size: 11px; color: var(--ink-soft);">${d.count}</div>
-            <div style="width: 100%; height: ${Math.max(h, 4)}%; background: linear-gradient(180deg, var(--butter), var(--peach)); border-radius: 6px 6px 0 0; min-height: 4px;"></div>
-            <div style="font-size: 11px; color: var(--ink-soft);">${d.label}</div>
-            <div style="font-size: 12px;">${sleepIcon}</div>
-          </div>
-        `;
-      }).join('')}
+  // For the yearly view we aggregate by week so the chart stays legible.
+  let buckets = items;
+  if (r === 'year') {
+    buckets = [];
+    for (let i = 0; i < items.length; i += 7) {
+      const slice = items.slice(i, i + 7);
+      const totalCount = slice.reduce((a,b) => a + b.count, 0);
+      // Average sleep tier across the slice (only over days that had a value).
+      const tiers = slice.map(s => SLEEP_TIERS[s.sleep]).filter(v => v != null);
+      const avgTier = tiers.length ? (tiers.reduce((a,b) => a+b, 0) / tiers.length) : null;
+      buckets.push({
+        key: slice[0].key,
+        date: slice[Math.floor(slice.length/2)].date,
+        count: totalCount,
+        sleepTier: avgTier,
+      });
+    }
+  } else {
+    buckets = items.map(it => ({ ...it, sleepTier: it.sleep ? SLEEP_TIERS[it.sleep] : null }));
+  }
+
+  const W = 680, H = 180;
+  const padL = 36, padR = 44, padT = 14, padB = 32;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const n = buckets.length;
+  const xFor = (i) => n <= 1 ? padL + plotW/2 : padL + (i / (n - 1)) * plotW;
+  const maxCount = Math.max(1, ...buckets.map(b => b.count));
+  // Left axis range: 0..maxCount.
+  const yLeft = (v) => padT + plotH - (v / maxCount) * plotH;
+  // Right axis range: 1..4 (4 = earliest sleep = top of chart).
+  const yRight = (t) => padT + plotH - ((t - 1) / 3) * plotH;
+
+  // Build the task-count polyline (skip zero stretches so flatline weeks
+  // don't look like a giant gap).
+  const pathCount = buckets.map((b, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(1)} ${yLeft(b.count).toFixed(1)}`).join(' ');
+
+  // Sleep line — skip buckets where we have no data (NaN-safe).
+  let pathSleep = '';
+  let prevValid = false;
+  buckets.forEach((b, i) => {
+    if (b.sleepTier == null) { prevValid = false; return; }
+    pathSleep += `${prevValid ? 'L' : 'M'} ${xFor(i).toFixed(1)} ${yRight(b.sleepTier).toFixed(1)} `;
+    prevValid = true;
+  });
+
+  // Tick labels for the x-axis — roughly 5 evenly-spaced entries.
+  const tickCount = Math.min(n, 5);
+  const tickIdx = [];
+  for (let k = 0; k < tickCount; k++) {
+    tickIdx.push(Math.round((k / Math.max(1, tickCount - 1)) * (n - 1)));
+  }
+  const en = getLang() === 'en';
+  const xLabel = (d) => {
+    if (r === 'week') {
+      return (en ? ['S','M','T','W','T','F','S'] : ['日','一','二','三','四','五','六'])[d.getDay()];
+    } else if (r === 'month') {
+      return `${d.getMonth()+1}/${d.getDate()}`;
+    } else {
+      return en ? `${d.getMonth()+1}/${d.getDate()}` : `${d.getMonth()+1}月`;
+    }
+  };
+
+  // Left y-axis ticks (0, mid, max).
+  const leftTicks = [0, Math.round(maxCount/2), maxCount].filter((v,i,a) => a.indexOf(v) === i);
+  const rightTicks = [
+    { t: 4, lblZh: '23前', lblEn: '<23' },
+    { t: 3, lblZh: '24前', lblEn: '<24' },
+    { t: 2, lblZh: '1点前', lblEn: '<1am' },
+    { t: 1, lblZh: '更晚', lblEn: 'later' },
+  ];
+
+  const gridLines = leftTicks.map(v => `<line x1="${padL}" y1="${yLeft(v)}" x2="${padL + plotW}" y2="${yLeft(v)}" stroke="#e8decf" stroke-width="1"/>`).join('');
+  const leftLabels = leftTicks.map(v => `<text x="${padL - 6}" y="${yLeft(v) + 3}" font-size="10" fill="#a88e70" text-anchor="end">${v}</text>`).join('');
+  const rightLabels = rightTicks.map(rt => `<text x="${padL + plotW + 6}" y="${yRight(rt.t) + 3}" font-size="10" fill="#8aa3b5" text-anchor="start">${en?rt.lblEn:rt.lblZh}</text>`).join('');
+  const xLabels = tickIdx.map(i => {
+    const b = buckets[i];
+    if (!b) return '';
+    return `<text x="${xFor(i)}" y="${H - 10}" font-size="10" fill="#a88e70" text-anchor="middle">${xLabel(b.date)}</text>`;
+  }).join('');
+
+  // Dots on each bucket for the task line (so single points still render).
+  const countDots = buckets.map((b, i) => `<circle cx="${xFor(i)}" cy="${yLeft(b.count)}" r="2.4" fill="#d88671"/>`).join('');
+  const sleepDots = buckets.map((b, i) => b.sleepTier == null
+    ? ''
+    : `<circle cx="${xFor(i)}" cy="${yRight(b.sleepTier)}" r="2.4" fill="#7ba3b5"/>`
+  ).join('');
+
+  const legendTasks = en ? 'Tasks done' : '完成任务';
+  const legendSleep = en ? 'Sleep time' : '睡眠时间';
+  const subtitle = en
+    ? `${r === 'week' ? 'Past week' : r === 'month' ? 'Past month' : 'Past year'}`
+    : `${r === 'week' ? '过去一周' : r === 'month' ? '过去一月' : '过去一年'}`;
+
+  host.innerHTML = `
+    <div style="display:flex; align-items:center; gap:14px; font-size:12px; color:var(--ink-soft); margin-bottom:6px; flex-wrap:wrap;">
+      <div style="display:inline-flex; align-items:center; gap:6px;"><span style="display:inline-block; width:12px; height:3px; background:#d88671; border-radius:2px;"></span>${legendTasks}</div>
+      <div style="display:inline-flex; align-items:center; gap:6px;"><span style="display:inline-block; width:12px; height:3px; background:#7ba3b5; border-radius:2px;"></span>${legendSleep}</div>
+      <div style="margin-left:auto;">${subtitle}</div>
     </div>
-    <div style="margin-top: 12px; font-size: 12px; color: var(--ink-soft); text-align: center;">${T('柱子 = 完成任务数，图标 = 那晚的睡眠','Bars = tasks done, icons = sleep that night')}</div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" style="max-height:220px; display:block;">
+      ${gridLines}
+      ${leftLabels}
+      ${rightLabels}
+      ${xLabels}
+      ${pathCount ? `<path d="${pathCount}" stroke="#d88671" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+      ${countDots}
+      ${pathSleep ? `<path d="${pathSleep}" stroke="#7ba3b5" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3"/>` : ''}
+      ${sleepDots}
+    </svg>
   `;
-  document.getElementById('weekChart').innerHTML = html;
 }
 
 function renderSleepStatus() {
-  const t = todayStr();
-  const s = state.sleep[t];
+  // We record the sleep for LAST NIGHT under yesterday's key, so the panel
+  // reflects yesterday's record (not today's).
+  const y = yesterdayStr();
+  const s = state.sleep[y];
   document.querySelectorAll('.sleep-btn').forEach(b => {
     b.classList.toggle('logged', b.dataset.sleep === s);
   });
   const txt = getLang()==='en' ? {
-    before23: `Lovely! Before 23:00 · ${state.pet.name} will dream sweetly 🌟`,
+    before23: `Lovely! Before 23:00 · ${state.pet.name} dreamt sweetly`,
     before24: 'Decent timing · keep it up',
-    before1: 'A bit late · try a little earlier tomorrow?',
-    late: 'Pulling a late one ~ be gentle with yourself tomorrow',
+    before1: 'A bit late · try a little earlier tonight?',
+    late: 'A late one ~ be gentle with yourself today',
   } : {
-    before23: `太棒了！23点前睡 · ${state.pet.name}会做个好梦 🌟`,
+    before23: `太棒了！昨晚23点前睡 · ${state.pet.name}做了个好梦`,
     before24: '不错的时间 · 继续保持哦',
-    before1: '有点晚了 · 明天争取早一点?',
-    late: '熬夜啦~ 明天对自己温柔一点',
+    before1: '昨晚有点晚 · 今晚争取早一点?',
+    late: '昨晚熬夜啦~ 今天对自己温柔一点',
   };
-  document.getElementById('sleepStatus').textContent = s ? txt[s] : T(`点击记录今晚睡眠 · 23点前上床可让${state.pet.name}额外成长`, `Tap to log tonight’s sleep · in bed before 23:00 helps ${state.pet.name} grow extra`);
+  document.getElementById('sleepStatus').textContent = s ? txt[s] : T(`点击记录昨晚睡眠 · 23点前上床可让${state.pet.name}额外成长`, `Tap to log last night's sleep · in bed before 23:00 helps ${state.pet.name} grow extra`);
 }
 
 let editingTaskId = null;
@@ -3069,17 +4077,17 @@ const I18N_MAP = {
   pat_btn: { zh: '🫶 摸摸它', en: '🫶 Pat pat' },
   stars: { zh: '星星', en: 'Stars' },
   streak: { zh: '连续', en: 'Streak' },
-  power: { zh: '综合战斗力', en: 'Total power' },
+  power: { zh: '综合成长值', en: 'Growth points' },
   today_quest: { zh: '今日主线', en: 'Today\u2019s quests' },
   today_quest_sub: { zh: '今天只挑 3-5 件，不贪多 🌿', en: 'Pick just 3\u20135 things today \u2014 don\u2019t overdo it 🌿' },
   add_small_task: { zh: '+ 加一个小任务', en: '+ Add a small task' },
   five_dims: { zh: '五维能力', en: 'Five dimensions' },
-  sleep_title: { zh: '今晚打算几点睡？', en: 'When are you sleeping tonight?' },
-  sleep_sub: { zh: '早睡是元习惯，影响明天的一切 ✦', en: 'Sleeping early is the meta-habit \u2014 it shapes everything tomorrow ✦' },
-  sleep_b23: { zh: '🌟 23:00前', en: '🌟 Before 23:00' },
-  sleep_b24: { zh: '😊 23-24点', en: '😊 23:00\u201300:00' },
-  sleep_b1: { zh: '😐 凌晨1点前', en: '😐 Before 1 AM' },
-  sleep_late: { zh: '😴 更晚了', en: '😴 Later' },
+  sleep_title: { zh: '昨晚几点睡？', en: 'When did you sleep last night?' },
+  sleep_sub: { zh: '早睡是元习惯，影响今天的一切 ✦', en: 'Sleeping early is the meta-habit \u2014 it shapes the whole day ✦' },
+  sleep_b23: { zh: '23:00前', en: 'Before 23:00' },
+  sleep_b24: { zh: '23-24点', en: '23:00\u201300:00' },
+  sleep_b1: { zh: '凌晨1点前', en: 'Before 1 AM' },
+  sleep_late: { zh: '更晚了', en: 'Later' },
   all_tasks: { zh: '所有任务', en: 'All tasks' },
   all_tasks_sub: { zh: '习惯的小田地', en: 'Your little habit field' },
   new_task: { zh: '+ 新任务', en: '+ New task' },
@@ -3120,6 +4128,7 @@ const I18N_MAP = {
   log_sub: { zh: '温柔地看看自己走过的路', en: 'A gentle look at the path you\u2019ve walked' },
   today_words: { zh: '今日一言', en: 'A line for today' },
   today_words_ph: { zh: '今天的一个小发现、一个小感受...', en: 'A small discovery or feeling from today...' },
+  journal_tag_ph: { zh: '添加标签（用逗号或空格分隔，可选）', en: 'Add tags (comma or space separated, optional)' },
   save_journal: { zh: '记下来 ✎', en: 'Write it down ✎' },
   last_7: { zh: '最近 7 天', en: 'Last 7 days' },
   past_notes: { zh: '写过的话', en: 'What you\u2019ve written' },
@@ -3157,6 +4166,28 @@ const I18N_MAP = {
   l3: { zh: '3 次', en: '3×' },
   reward_desc: { zh: '描述（可选）', en: 'Description (optional)' },
   reward_desc_ph: { zh: '给未来的自己一句话', en: 'A note to your future self' },
+  // settings
+  settings_h: { zh: '设置', en: 'Settings' },
+  account: { zh: '账号', en: 'Account' },
+  cloud_synced: { zh: '☁️ 已云端同步', en: '☁️ Cloud synced' },
+  signout: { zh: '退出登录', en: 'Sign out' },
+  display_name: { zh: '显示的用户名', en: 'Display name' },
+  display_name_ph: { zh: '想怎么显示都行 🌱', en: 'However you want to be shown 🌱' },
+  offline_hint: { zh: '当前：未登录（数据只保存在本机）。登录后自动同步到云端。', en: 'Currently signed out (data stays on this device only). Sign in to sync to the cloud.' },
+  login_register: { zh: '登录 / 注册', en: 'Sign in / Register' },
+  language: { zh: '语言', en: 'Language' },
+  close: { zh: '关掉', en: 'Close' },
+  // inline auth strings (embedded in settings modal)
+  signin_google: { zh: '使用 Google 账号登录', en: 'Sign in with Google' },
+  or_email: { zh: '或用邮箱', en: 'or with email' },
+  email_ph: { zh: '邮箱地址', en: 'Email address' },
+  password_ph: { zh: '密码', en: 'Password' },
+  password6_ph: { zh: '密码（至少6位）', en: 'Password (6+ chars)' },
+  signin_btn: { zh: '登录', en: 'Sign in' },
+  register_btn: { zh: '注册', en: 'Register' },
+  register_account: { zh: '注册账号', en: 'Create account' },
+  no_account: { zh: '还没有账号？', en: 'No account yet?' },
+  has_account: { zh: '已有账号？', en: 'Have an account?' },
 };
 function getLang(){ return localStorage.getItem('hg_lang') || 'zh'; }
 function T(zh, en){ return getLang()==='en' ? en : zh; }
@@ -3177,6 +4208,72 @@ function setLang(l){
   if (typeof renderAll === 'function' && state && state.pet) renderAll();
 }
 function toggleLang(){ setLang(getLang()==='en' ? 'zh' : 'en'); }
+
+/* ============ Settings modal ============ */
+function openSettingsModal(){
+  const signedIn = !!(window._firebaseReady && typeof window.currentUser !== 'undefined');
+  // Actually: firebase's currentUser isn't on window. Use _firebaseReady as proxy.
+  const isSignedIn = !!window._firebaseReady;
+  document.getElementById('settingsAccountSignedIn').style.display = isSignedIn ? 'block' : 'none';
+  document.getElementById('settingsAccountSignedOut').style.display = isSignedIn ? 'none' : 'block';
+  if (isSignedIn) {
+    const el = document.getElementById('userEmail');
+    document.getElementById('settingsCurrentEmail').textContent = el ? el.textContent : '';
+    const dn = (state.settings && state.settings.displayName) || '';
+    document.getElementById('settingsDisplayName').value = dn;
+  }
+  // Reflect the currently active language
+  const lang = getLang();
+  const zhBtn = document.getElementById('settingsLangZh');
+  const enBtn = document.getElementById('settingsLangEn');
+  if (zhBtn && enBtn) {
+    zhBtn.style.background = lang==='zh' ? 'var(--moss)' : 'var(--cream-2)';
+    zhBtn.style.color = lang==='zh' ? '#fff' : 'var(--ink)';
+    enBtn.style.background = lang==='en' ? 'var(--moss)' : 'var(--cream-2)';
+    enBtn.style.color = lang==='en' ? '#fff' : 'var(--ink)';
+  }
+  document.getElementById('settingsModal').classList.add('active');
+}
+function closeSettingsModal(){
+  document.getElementById('settingsModal').classList.remove('active');
+}
+/* Auth is now inline inside the settings modal. These kept-for-safety shims
+   just route through openSettingsModal so any legacy call sites still work. */
+function openAuthScreen(){ openSettingsModal(); }
+function closeAuthScreen(){ closeSettingsModal(); }
+/* Editable username (top-right badge). Stored in state.settings.displayName. */
+function editUsername(){
+  if(!state.settings) state.settings = {};
+  const current = state.settings.displayName
+    || (document.getElementById('userEmail') ? document.getElementById('userEmail').textContent : '');
+  const next = prompt(getLang()==='en' ? 'Display name' : '显示的用户名', current || '');
+  if (next === null) return;
+  const cleaned = next.trim().slice(0, 24);
+  state.settings.displayName = cleaned || null;
+  save();
+  applyDisplayName();
+}
+function saveDisplayName(){
+  const v = (document.getElementById('settingsDisplayName').value || '').trim().slice(0, 24);
+  if(!state.settings) state.settings = {};
+  state.settings.displayName = v || null;
+  save();
+  applyDisplayName();
+  toast(T('用户名已更新~','Display name updated ~'), '✎');
+}
+/* Paint the user email/name badge and settings preview from state.settings. */
+function applyDisplayName(){
+  const el = document.getElementById('userEmail');
+  if (!el) return;
+  const dn = state.settings && state.settings.displayName;
+  if (dn) {
+    el.textContent = dn;
+  } else if (typeof window._updateUserEmailDisplay === 'function') {
+    window._updateUserEmailDisplay();
+  } else if (!el.textContent) {
+    el.textContent = getLang()==='en' ? 'Guest' : '未登录';
+  }
+}
 
 /* ============ Pet pat interaction ============ */
 const PAT_LINES = {
@@ -3371,6 +4468,9 @@ function renderMood(){
     el.style.color = active ? '#fff' : 'var(--ink)';
   });
 
+  // Draw the dual-axis activity line chart that shares the same 周/月/年 tabs.
+  if (typeof renderActivityChart === 'function') renderActivityChart(_moodRange);
+
   const statsEl = document.getElementById('moodStats');
   if(!entries.length){
     statsEl.innerHTML = `<div class="empty" style="padding:14px 0;">${en?'No moods logged yet in this range':'这段时间还没有记录心情呢'}</div>`;
@@ -3515,10 +4615,19 @@ function importData() {
   };
   input.click();
 }
-function resetData() {
+async function resetData() {
   if (!confirm(T(`真的要全部重置吗？${state.pet.name}会重新成为一颗种子。`, `Really reset everything? ${state.pet.name} will become a seed again.`))) return;
   if (!confirm(T('再次确认：所有进度都会消失！','Confirm again: all progress will be lost!'))) return;
+  // Cancel any pending debounced cloud save so we don't accidentally re-upload old state.
+  if (window._cloudSaveTimer) { clearTimeout(window._cloudSaveTimer); window._cloudSaveTimer = null; }
+  // Replace in-memory state with defaults and also push defaults to the cloud so
+  // the snapshot listener on another device doesn't fight the reset.
+  if (typeof window._resetStateToDefaults === 'function') window._resetStateToDefaults();
+  window._cloudLoaded = true; // mark as authoritative so save() can write fresh defaults up
   localStorage.removeItem(LS_KEY);
+  if (window._firebaseReady && typeof window._resetCloudDoc === 'function') {
+    try { await window._resetCloudDoc(); } catch(e) { console.warn('[reset] cloud reset failed:', e); }
+  }
   location.reload();
 }
 
@@ -3551,13 +4660,18 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
   if (hugBtn) hugBtn.addEventListener('click', closeComfortModal);
 })();
 
-/* Boot is now deferred: the Firebase module calls _bootApp() after
-   onAuthStateChanged succeeds AND Firestore has been loaded. */
+/* Boot the app immediately from localStorage. Login is now optional and
+   happens through the Settings modal. If Firebase later authenticates a
+   user, the onAuthStateChanged handler will re-render with cloud state. */
+let _bootedOnce = false;
 window._bootApp = function() {
+  if (_bootedOnce) { renderAll(); return; }
+  _bootedOnce = true;
   load();
   seedDefaults();
   renderAll();
   setLang(getLang());
+  applyDisplayName();
   if (!state.settings.seenWelcome) {
     setTimeout(() => {
       toast(T(`欢迎回来~ ${state.pet.name}在等你 🌱`, `Welcome back ~ ${state.pet.name} is waiting 🌱`), '🌷');
@@ -3566,19 +4680,15 @@ window._bootApp = function() {
     }, 500);
   }
 };
-/* If this page is ever opened without Firebase (e.g. file:// with no network),
-   let the app still boot from localStorage so you don't get stuck on a blank
-   auth screen. We wait 8s for Firebase to take over; if it hasn't, fall back. */
-setTimeout(() => {
-  if (!window._firebaseReady) {
-    console.warn('[habit-garden] Firebase did not initialize; booting in offline localStorage mode.');
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
+
+// Kick off boot as soon as this script runs — no auth required.
+(function immediateBoot(){
+  try {
     const userEmail = document.getElementById('userEmail');
-    if (userEmail) userEmail.textContent = '离线模式';
+    if (userEmail && !userEmail.textContent) userEmail.textContent = getLang()==='en' ? 'Guest' : '未登录';
     window._bootApp();
-  }
-}, 8000);
+  } catch(e) { console.warn('[boot] immediate boot failed:', e); }
+})();
 </script>
 
 </div><!-- /#appScreen -->
@@ -3621,28 +4731,60 @@ function setSyncStatus(status) {
 // ── AUTH STATE ──
 onAuthStateChanged(auth, async user => {
   if (user) {
+    // If we're signing in as a DIFFERENT uid than the one cached locally,
+    // wipe local state so the new user starts clean instead of inheriting
+    // the previous user's data before Firestore finishes loading.
+    const prevUid = localStorage.getItem('hg_last_uid');
+    if (prevUid && prevUid !== user.uid) {
+      try { localStorage.removeItem('habit_garden_v1'); } catch(e) {}
+      if (typeof window._resetStateToDefaults === 'function') window._resetStateToDefaults();
+      window._cloudLoaded = false;
+    }
+    try { localStorage.setItem('hg_last_uid', user.uid); } catch(e) {}
     currentUser = user;
     window._firebaseReady = true;
-    document.getElementById('userEmail').textContent = user.displayName || user.email.split('@')[0];
-    document.getElementById('authScreen').style.display = 'none';
+    updateUserEmailDisplay(user);
+    // Show app (always), show the logout button, close settings if it was open.
     document.getElementById('appScreen').style.display = 'block';
+    const so = document.getElementById('headerSignOutBtn'); if (so) so.style.display = '';
+    // If the user was in the settings modal signing in, close it once we're in.
+    const sm = document.getElementById('settingsModal'); if (sm) sm.classList.remove('active');
     await loadFromFirestore();
     subscribeToChanges();
-    if (!_bootDone) {
-      _bootDone = true;
-      if (typeof window._bootApp === 'function') window._bootApp();
-    } else {
-      // User switched without reload — just re-render with the new state.
-      if (typeof window.renderAll === 'function') window.renderAll();
-    }
+    if (typeof window._bootApp === 'function') window._bootApp();
+    if (typeof window.renderAll === 'function') window.renderAll();
+    if (typeof window.applyDisplayName === 'function') window.applyDisplayName();
   } else {
     currentUser = null;
     window._firebaseReady = false;
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
+    // Clear local cache on logout so the offline-fallback path can't resurrect
+    // a previous user's data if the next user signs in under a different uid.
+    try { localStorage.removeItem('habit_garden_v1'); } catch(e) {}
+    try { localStorage.removeItem('hg_last_uid'); } catch(e) {}
+    if (typeof window._resetStateToDefaults === 'function') window._resetStateToDefaults();
+    window._cloudLoaded = false;
+    // Keep the app VISIBLE — sign-in is now optional. Hide the signout button
+    // and boot/refresh a clean offline session.
+    document.getElementById('appScreen').style.display = 'block';
+    const so = document.getElementById('headerSignOutBtn'); if (so) so.style.display = 'none';
     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    const el = document.getElementById('userEmail');
+    if (el) el.textContent = (typeof getLang === 'function' && getLang()==='en') ? 'Guest' : '未登录';
+    // Re-seed defaults and render (e.g. after sign-out we want a clean local state).
+    if (typeof window.seedDefaults === 'function') window.seedDefaults();
+    if (typeof window.renderAll === 'function') window.renderAll();
   }
 });
+
+/* Show the user's chosen display name if set, else their email prefix. */
+function updateUserEmailDisplay(user) {
+  if (!user) return;
+  const el = document.getElementById('userEmail');
+  if (!el) return;
+  const custom = window.state && window.state.settings && window.state.settings.displayName;
+  el.textContent = custom || user.displayName || user.email.split('@')[0];
+}
+window._updateUserEmailDisplay = () => updateUserEmailDisplay(currentUser);
 
 // ── AUTH FUNCTIONS (exposed to inline onclicks) ──
 window.signInGoogle = async () => {
@@ -3675,25 +4817,37 @@ window.signUpEmail = async () => {
 };
 window.signOut = async () => {
   if (!confirm('确定退出登录？')) return;
+  // Clear local cache BEFORE signing out so the next user can't inherit this
+  // user's state from localStorage. Also reset the in-memory state to defaults
+  // so the auth screen can't render stale data.
+  try { localStorage.removeItem('habit_garden_v1'); } catch(e) {}
+  window._cloudLoaded = false;
+  if (window._cloudSaveTimer) { clearTimeout(window._cloudSaveTimer); window._cloudSaveTimer = null; }
+  if (typeof window._resetStateToDefaults === 'function') window._resetStateToDefaults();
   await fbSignOut(auth);
 };
 window.showRegister = () => {
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('registerForm').style.display = 'block';
-  document.getElementById('authError').style.display = 'none';
+  const lf = document.getElementById('loginForm'); if (lf) lf.style.display = 'none';
+  const rf = document.getElementById('registerForm'); if (rf) rf.style.display = 'block';
+  const err = document.getElementById('authError'); if (err) err.style.display = 'none';
 };
 window.showLogin = () => {
-  document.getElementById('registerForm').style.display = 'none';
-  document.getElementById('loginForm').style.display = 'block';
-  document.getElementById('authError').style.display = 'none';
+  const rf = document.getElementById('registerForm'); if (rf) rf.style.display = 'none';
+  const lf = document.getElementById('loginForm'); if (lf) lf.style.display = 'block';
+  const err = document.getElementById('authError'); if (err) err.style.display = 'none';
 };
 function showAuthError(msg) {
   const el = document.getElementById('authError');
+  if (!el) { console.warn('[auth] no error panel:', msg); return; }
   el.textContent = msg; el.style.display = 'block';
 }
 function showAuthLoading(show) {
-  document.getElementById('authLoading').style.display = show ? 'block' : 'none';
-  document.getElementById('authForms').style.display = show ? 'none' : 'block';
+  const loadEl = document.getElementById('authLoading');
+  // The auth form has been inlined into the settings modal; accept either
+  // the new id ('settingsAuthForms') or the old one ('authForms') for safety.
+  const formEl = document.getElementById('settingsAuthForms') || document.getElementById('authForms');
+  if (loadEl) loadEl.style.display = show ? 'block' : 'none';
+  if (formEl) formEl.style.display = show ? 'none' : 'block';
 }
 
 // ── FIRESTORE ──
@@ -3749,6 +4903,23 @@ window._saveToFirestore = async function() {
     await setDoc(docRef, window.state, { merge: true });
     setSyncStatus('ok');
   } catch(e) { setSyncStatus('error'); console.error('[firestore] save failed:', e); }
+};
+
+/* Wipe the user's Firestore doc by overwriting it with a fresh default state.
+   Used by the "reset everything" flow so the cloud doesn't immediately
+   re-hydrate the old data on next load. Uses setDoc without merge so any
+   leftover keys are dropped. */
+window._resetCloudDoc = async function() {
+  if (!currentUser) return;
+  setSyncStatus('syncing');
+  try {
+    const fresh = (typeof _freshDefaultState === 'function')
+      ? _freshDefaultState()
+      : window.state;
+    const docRef = doc(db, 'users', currentUser.uid);
+    await setDoc(docRef, fresh);
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('error'); console.error('[firestore] reset failed:', e); throw e; }
 };
 
 /* Force-pull the latest cloud state. Bound to clicking the user badge.
