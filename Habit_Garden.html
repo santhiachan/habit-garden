@@ -1182,12 +1182,13 @@
 
       <div class="panel">
         <div class="panel-title">
-          <span data-i18n="today_quest">今日主线</span>
+          <span data-i18n="today_quest">今日任务</span>
           <span style="font-size: 13px; color: var(--ink-soft); font-weight: 400;" id="todayProgress">0/0</span>
         </div>
-        <div class="panel-sub" data-i18n="today_quest_sub">今天只挑 3-5 件，不贪多 🌿</div>
+        <div class="panel-sub" data-i18n="today_quest_sub">只挑 3-5 件，不贪多 🌿</div>
+        <div id="homeSortHint" style="font-size:12px; color:var(--ink-soft); margin: 0 2px 10px;"></div>
         <div class="task-list" id="homeTaskList"></div>
-        <button class="add-task-btn" data-i18n="add_small_task" onclick="openTaskModal()">+ 加一个小任务</button>
+        <div id="homeTaskActions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;"></div>
       </div>
 
     </div>
@@ -1199,7 +1200,6 @@
 
     <div class="sleep-panel">
       <div class="sleep-title" data-i18n="sleep_title">昨晚几点睡？</div>
-      <div class="sleep-sub" data-i18n="sleep_sub">早睡是元习惯，影响今天的一切 ✦</div>
       <div class="sleep-options">
         <button class="sleep-btn" data-sleep="before23" data-i18n="sleep_b23" onclick="logSleep('before23')">23:00前</button>
         <button class="sleep-btn" data-sleep="before24" data-i18n="sleep_b24" onclick="logSleep('before24')">23-24点</button>
@@ -1421,7 +1421,7 @@
     <p id="comfortBody" style="color: var(--ink-soft); font-size: 15px; line-height: 1.7; margin: 0 0 20px; padding: 0 6px;"></p>
     <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="comfortHugBtn" style="background: var(--rose, #c9584a); color:#fff; border:none; border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 3px 0 var(--peach-deep, #8e3a30);"></button>
-      <button id="comfortCloseBtn" style="background: transparent; color: var(--ink-soft); border:1.5px solid var(--ink-soft); border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; cursor:pointer;"></button>
+      <button id="comfortRestBtn" style="background: transparent; color: var(--ink-soft); border:1.5px solid var(--ink-soft); border-radius:999px; padding:10px 22px; font-family:inherit; font-size:14px; cursor:pointer; min-width:160px;"></button>
     </div>
   </div>
 </div>
@@ -1553,6 +1553,7 @@
         <label data-i18n="task_type">类型</label>
         <select id="taskTypeInput">
           <option value="daily" data-i18n="daily_short">每日</option>
+          <option value="weekly" data-i18n="weekly_short">每周</option>
           <option value="once" data-i18n="once_short">一次性</option>
         </select>
       </div>
@@ -1626,10 +1627,14 @@ function _freshDefaultState() {
     stars: 0, streak: 0, lastActiveDate: null,
     dims: { career: 0, charm: 0, wealth: 0, wisdom: 0, health: 0 },
     tasks: [], completions: {}, shopItems: [], shopPurchases: {},
-    cards: {}, sleep: {}, journal: [], moods: {}, customMoods: [], settings: { seenWelcome: false, seedOpened: false, displayName: null }
+    cards: {}, sleep: {}, journal: [], moods: {}, customMoods: [],
+    pinnedTaskIds: [], dailyMustDoByDate: {},
+    settings: { seenWelcome: false, seedOpened: false, displayName: null }
   };
 }
 var state = _freshDefaultState();
+/* Home task list view state — whether the user has expanded past the top 3. */
+let _homeTaskListExpanded = false;
 /* Exposed so auth / reset flows can wipe in-memory state without reloading. */
 window._resetStateToDefaults = function(){
   window.state = _freshDefaultState();
@@ -3564,6 +3569,10 @@ function completeTask(taskId, partial = false) {
     toast(T('今天已经完成过啦~', 'You already finished this today ~'), '🌼');
     return;
   }
+  if (task.type === 'weekly' && typeof isTaskDoneThisWeek === 'function' && isTaskDoneThisWeek(taskId)) {
+    toast(T('这周已经完成过啦~', 'You already finished this week ~'), '🌼');
+    return;
+  }
   state.completions[t].push(taskId);
   const diffRewards = [5, 15, 30, 60];
   let xp = diffRewards[task.difficulty - 1];
@@ -3883,7 +3892,10 @@ function todayNotOK() {
   document.getElementById('comfortTitle').textContent = pick.title;
   document.getElementById('comfortBody').textContent = pick.body;
   document.getElementById('comfortHugBtn').textContent = pick.btn;
-  document.getElementById('comfortCloseBtn').textContent = en ? 'Close' : '关掉';
+  // Right-side "take a 10-min rest" button — clicking it starts a live
+  // countdown inside the same button slot. The timer is cleared if the
+  // modal is closed (via backdrop, hug button, or this button itself).
+  resetRescueRestButton();
   // Make sure the gift-box button exists & is wired up (inserted once).
   ensureComfortGiftButton();
   document.getElementById('comfortModal').classList.add('active');
@@ -3981,7 +3993,57 @@ function comfortTipSkip(){
   toast(T('没关系，给你一颗心~ 💗', 'No worries — here\'s a heart 💗'), '💗');
 }
 function closeComfortModal(){
+  // Always clear any running rest timer so it doesn't keep ticking after
+  // the modal is dismissed (this covers backdrop clicks too, since the
+  // overlay handler below also calls this function).
+  clearRescueRestTimer();
   document.getElementById('comfortModal').classList.remove('active');
+}
+
+/* ==== Rescue modal: "先休息 10 分钟 / Rest 10 minutes" countdown ==== */
+let _rescueRestTimer = null;
+let _rescueRestEndsAt = null;
+function formatRescueRestRemaining(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+function resetRescueRestButton() {
+  clearRescueRestTimer();
+  const btn = document.getElementById('comfortRestBtn');
+  if (!btn) return;
+  btn.textContent = T('先休息 10 分钟','Rest 10 minutes');
+  btn.disabled = false;
+  btn.onclick = startRescueRestTimer;
+}
+function clearRescueRestTimer() {
+  if (_rescueRestTimer) { clearInterval(_rescueRestTimer); _rescueRestTimer = null; }
+  _rescueRestEndsAt = null;
+}
+function startRescueRestTimer() {
+  const btn = document.getElementById('comfortRestBtn');
+  if (!btn) return;
+  clearRescueRestTimer();
+  const durationMs = 10 * 60 * 1000;
+  _rescueRestEndsAt = Date.now() + durationMs;
+  const tick = () => {
+    const remaining = _rescueRestEndsAt - Date.now();
+    if (remaining <= 0) {
+      clearRescueRestTimer();
+      btn.textContent = T('休息够啦 · 回来轻一点 🌿','Rest done · come back gently 🌿');
+      btn.disabled = false;
+      // Let the user reset back to the original button label with one tap.
+      btn.onclick = resetRescueRestButton;
+      return;
+    }
+    btn.textContent = T(`休息中 · ${formatRescueRestRemaining(remaining)}`, `Resting · ${formatRescueRestRemaining(remaining)}`);
+  };
+  btn.disabled = false;
+  // Clicking again cancels the countdown and restores the original label.
+  btn.onclick = resetRescueRestButton;
+  tick();
+  _rescueRestTimer = setInterval(tick, 1000);
 }
 function buildComfortSeedSvg(){
   // Use the same seed-face aesthetic as drawSeed(), sized for the modal (160px).
@@ -4175,19 +4237,103 @@ function renderDims() {
   document.getElementById('dimsRow').innerHTML = html;
 }
 
+/* ============ Home task helpers: pin / must-do / weekly ============
+   These helpers back the simplified home panel: show only the top three
+   tasks by default, let the user pin a task or mark "today must-do", and
+   keep the detail tags only on the tasks page. */
+function ensureTaskMetadata() {
+  if (!Array.isArray(state.tasks)) state.tasks = [];
+  if (!Array.isArray(state.pinnedTaskIds)) state.pinnedTaskIds = [];
+  if (!state.dailyMustDoByDate || typeof state.dailyMustDoByDate !== 'object') state.dailyMustDoByDate = {};
+  const taskIds = new Set(state.tasks.map(task => task.id));
+  state.pinnedTaskIds = state.pinnedTaskIds.filter(id => taskIds.has(id));
+  Object.keys(state.dailyMustDoByDate).forEach(dateKey => {
+    const ids = Array.isArray(state.dailyMustDoByDate[dateKey]) ? state.dailyMustDoByDate[dateKey] : [];
+    state.dailyMustDoByDate[dateKey] = ids.filter(id => taskIds.has(id));
+  });
+}
+function getMustDoTodayIds(dateKey) {
+  ensureTaskMetadata();
+  const k = dateKey || todayStr();
+  return state.dailyMustDoByDate[k] || [];
+}
+function setHomeTaskListExpanded(next) {
+  _homeTaskListExpanded = !!next;
+  renderTasks();
+}
+function toggleHomeTaskListExpanded() {
+  setHomeTaskListExpanded(!_homeTaskListExpanded);
+}
+function toggleTaskPinned(id) {
+  ensureTaskMetadata();
+  const idx = state.pinnedTaskIds.indexOf(id);
+  if (idx >= 0) state.pinnedTaskIds.splice(idx, 1);
+  else state.pinnedTaskIds.push(id);
+  save();
+  renderAll();
+}
+function toggleTaskMustDoToday(id) {
+  ensureTaskMetadata();
+  const key = todayStr();
+  const current = new Set(getMustDoTodayIds(key));
+  if (current.has(id)) current.delete(id);
+  else current.add(id);
+  state.dailyMustDoByDate[key] = Array.from(current);
+  save();
+  renderAll();
+}
+/* Weekly tasks reset every 7 days — use the user's local Monday as the
+   anchor so rollover matches the rest of the app's local-midnight logic. */
+function weekDateKeysForToday() {
+  const now = new Date();
+  // JS getDay: Sunday=0..Saturday=6. Treat Monday as start of the week.
+  const dow = (now.getDay() + 6) % 7; // 0=Mon..6=Sun
+  const keys = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    keys.push(`${y}-${m}-${day}`);
+  }
+  return keys;
+}
+function isTaskDoneThisWeek(taskId) {
+  const keys = weekDateKeysForToday();
+  for (const k of keys) {
+    const ids = state.completions && state.completions[k];
+    if (ids && ids.includes(taskId)) return true;
+  }
+  return false;
+}
+
 function renderTasks() {
+  ensureTaskMetadata();
   const t = todayStr();
   const todayDone = state.completions[t] || [];
+  const mustDoTodayIds = getMustDoTodayIds(t);
+  const pinnedTaskIds = state.pinnedTaskIds || [];
   const dimIcons = { career: '💼', charm: '💖', wealth: '💰', wisdom: '📚', health: '🌿' };
   const diffTags = getLang()==='en' ? ['🌱 Tiny','🌿 Normal','🌳 Challenge','🌲 Big'] : ['🌱小事', '🌿一般', '🌳挑战', '🌲大事'];
+  const dimNames = getLang()==='en'
+    ? {career:'Career',charm:'Charm',wealth:'Wealth',wisdom:'Wisdom',health:'Health'}
+    : {career:'事业',charm:'魅力',wealth:'财富',wisdom:'智慧',health:'健康'};
   const diffXp = [5, 15, 30, 60];
 
-  const renderTaskRow = (task) => {
-    const done = todayDone.includes(task.id);
+  // A task counts as "done" differently depending on its cadence.
+  const isTaskDone = (task) => {
+    if (task.type === 'weekly') return isTaskDoneThisWeek(task.id);
+    return todayDone.includes(task.id);
+  };
+
+  const renderTaskRow = (task, mode = 'default') => {
+    const done = isTaskDone(task);
     const started = !done && (state.partialStarts && state.partialStarts[t] && state.partialStarts[t].includes(task.id));
     const fullXp = diffXp[task.difficulty - 1];
     const halfXp = Math.floor(fullXp * 0.5);
     const remainXp = fullXp - halfXp;
+    const isPinned = pinnedTaskIds.includes(task.id);
+    const isMust = mustDoTodayIds.includes(task.id);
     let actions = '';
     if (done) {
       actions = `<button class="task-undo-btn" onclick="event.stopPropagation(); uncompleteTask('${task.id}')" title="${T('取消打卡','Un-check')}">✓ ${T('已完成','Done')} · ${T('点此撤销','undo')}</button>`;
@@ -4202,49 +4348,125 @@ function renderTasks() {
         <button class="task-finish-btn" onclick="event.stopPropagation(); completeTask('${task.id}')" title="${T('直接完成，拿满奖励','Complete now, full reward')}">✓ ${T('完成','Finish')} +${fullXp}xp</button>
       `;
     }
+    // Tags: on home, simplify to only pin/must-do markers. On the task page,
+    // keep the full detail set (dim, difficulty, one-time/weekly).
+    let metaTags = '';
+    if (mode === 'home') {
+      if (isPinned) metaTags += `<span class="tag">${T('📌 置顶中','📌 Pinned')}</span>`;
+      if (isMust)   metaTags += `<span class="tag">${T('⭐ 今天必做','⭐ Must today')}</span>`;
+    } else {
+      metaTags += `<span class="tag">${dimIcons[task.dim]} ${dimNames[task.dim]}</span>`;
+      metaTags += `<span class="tag">${diffTags[task.difficulty - 1]}</span>`;
+      if (task.type === 'once')   metaTags += `<span class="tag">${T('一次性','One-time')}</span>`;
+      if (task.type === 'weekly') metaTags += `<span class="tag">${T('每周','Weekly')}</span>`;
+      if (isPinned) metaTags += `<span class="tag">${T('📌 置顶中','📌 Pinned')}</span>`;
+      if (isMust)   metaTags += `<span class="tag">${T('⭐ 今天必做','⭐ Must today')}</span>`;
+    }
+    // Manage controls (pin / must-do toggles) are shown on both home and
+    // task page so the user can mark items without switching views.
+    const manageControls = (mode === 'home' || mode === 'tasks')
+      ? `
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+          <button class="quick-btn" onclick="event.stopPropagation(); toggleTaskPinned('${task.id}')" style="padding:6px 10px; font-size:12px;">${isPinned ? T('📌 取消置顶','📌 Unpin') : T('📌 置顶','📌 Pin')}</button>
+          <button class="quick-btn" onclick="event.stopPropagation(); toggleTaskMustDoToday('${task.id}')" style="padding:6px 10px; font-size:12px;">${isMust ? T('⭐ 取消必做','⭐ Clear must-do') : T('⭐ 今天必做','⭐ Must today')}</button>
+        </div>
+      `
+      : '';
     return `
-      <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''}">
+      <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''}" data-task-id="${task.id}">
         <div class="task-body">
           <div class="task-name">${escapeHtml(task.name)}</div>
-          <div class="task-meta">
-            <span class="tag">${dimIcons[task.dim]} ${(getLang()==='en' ? {career:'Career',charm:'Charm',wealth:'Wealth',wisdom:'Wisdom',health:'Health'} : {career:'事业',charm:'魅力',wealth:'财富',wisdom:'智慧',health:'健康'})[task.dim]}</span>
-            <span class="tag">${diffTags[task.difficulty - 1]}</span>
-            ${task.type === 'once' ? `<span class="tag">${T('一次性','One-time')}</span>` : ''}
-          </div>
+          <div class="task-meta">${metaTags}</div>
+          ${manageControls}
         </div>
         <div class="task-actions">${actions}</div>
       </div>
     `;
   };
 
-  /* Sort so undone tasks appear first and completed (done) tasks sink to the
-     bottom — makes unfinished work the first thing the eye lands on. */
+  /* Rank helper for the home list:
+       pinned (in user order) → must-do today → easy-to-start → rest.
+     Done items sink to the bottom. */
+  const homeRank = (task) => {
+    const pinIdx = pinnedTaskIds.indexOf(task.id);
+    if (pinIdx >= 0) return [0, pinIdx];
+    if (mustDoTodayIds.includes(task.id)) return [1, 0];
+    if (task.difficulty === 1) return [2, 0];
+    return [3, 0];
+  };
+  const sortForHome = (arr) => arr.slice().sort((a, b) => {
+    const aDone = isTaskDone(a) ? 1 : 0;
+    const bDone = isTaskDone(b) ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    const [ar, ai] = homeRank(a);
+    const [br, bi] = homeRank(b);
+    if (ar !== br) return ar - br;
+    return ai - bi;
+  });
+
+  // Simple sort for the task page (done sink to bottom, keep user order otherwise).
   const sortByDone = (arr) => arr.slice().sort((a, b) => {
-    const aDone = todayDone.includes(a.id) ? 1 : 0;
-    const bDone = todayDone.includes(b.id) ? 1 : 0;
+    const aDone = isTaskDone(a) ? 1 : 0;
+    const bDone = isTaskDone(b) ? 1 : 0;
     return aDone - bDone;
   });
 
-  const homeVisible = sortByDone(state.tasks.filter(task => {
-    if (task.type === 'daily') return true;
-    if (task.type === 'once' && !todayDone.includes(task.id)) return true;
+  // Home candidates: dailies, weekly not yet done this week, one-time not yet done.
+  const homeCandidates = state.tasks.filter(task => {
+    if (task.type === 'daily')  return true;
+    if (task.type === 'weekly') return !isTaskDoneThisWeek(task.id);
+    if (task.type === 'once')   return !todayDone.includes(task.id);
     return false;
-  })).slice(0, 8);
+  });
+  const rankedHomeIncomplete = sortForHome(homeCandidates).filter(task => !isTaskDone(task));
+  /* Default view shows only the top 3. If the user has pinned or marked
+     must-do items, they bubble up automatically through homeRank. */
+  const homeTopThree = rankedHomeIncomplete.slice(0, 3);
+  const homeVisible = _homeTaskListExpanded ? rankedHomeIncomplete : homeTopThree;
+  const completedHome = sortForHome(homeCandidates.filter(task => isTaskDone(task)));
 
-  document.getElementById('homeTaskList').innerHTML = homeVisible.length
-    ? homeVisible.map(renderTaskRow).join('')
-    : `<div class="empty">${T('还没有任务，点下方加一个 🌱','No tasks yet — add one below 🌱')}</div>`;
+  let homeHtml = '';
+  if (!homeCandidates.length && !completedHome.length) {
+    homeHtml = `<div class="empty">${T('还没有任务，点下方加一个 🌱','No tasks yet — add one below 🌱')}</div>`;
+  } else if (!homeVisible.length && !completedHome.length) {
+    homeHtml = `<div class="empty">${T('今天清空啦 🌷','All clear for today 🌷')}</div>`;
+  } else {
+    if (homeVisible.length) {
+      homeHtml += homeVisible.map(task => renderTaskRow(task, 'home')).join('');
+    }
+    if (_homeTaskListExpanded && completedHome.length) {
+      homeHtml += `<div style="font-size:12px; color:var(--ink-soft); margin:16px 4px 8px;">${T('今天已完成','Done today')}</div>`;
+      homeHtml += completedHome.map(task => renderTaskRow(task, 'home')).join('');
+    }
+  }
+  document.getElementById('homeTaskList').innerHTML = homeHtml;
 
-  const doneCount = state.tasks.filter(t2 => t2.type === 'daily' && todayDone.includes(t2.id)).length;
-  const totalDaily = state.tasks.filter(t2 => t2.type === 'daily').length;
-  document.getElementById('todayProgress').textContent = `${doneCount}/${totalDaily}`;
+  const sortHint = mustDoTodayIds.length
+    ? T('置顶 / 今天必做 已经排在最前面。','Pinned & must-do items are surfaced first.')
+    : T('默认只显示最上面 3 个，点下方可展开。','Only the top 3 show by default — tap below to expand.');
+  document.getElementById('homeSortHint').textContent = sortHint;
 
-  const onceTasks = sortByDone(state.tasks.filter(task => task.type === 'once'));
-  const dailyTasks = sortByDone(state.tasks.filter(task => task.type === 'daily'));
+  const expandLabel = _homeTaskListExpanded
+    ? T('收起完整列表','Collapse full list')
+    : T(`展开完整列表 (${rankedHomeIncomplete.length})`, `See full list (${rankedHomeIncomplete.length})`);
+  document.getElementById('homeTaskActions').innerHTML = `
+    <button class="add-task-btn" data-i18n="add_small_task" onclick="openTaskModal()" style="flex:1; min-width:180px;">+ ${T('加一个小任务','Add a small task')}</button>
+    <button class="quick-btn" onclick="toggleHomeTaskListExpanded()" style="padding:10px 16px; font-size:13px;">${expandLabel}</button>
+  `;
+
+  // Progress counter: include both daily and weekly "active" tasks so the
+  // ratio still reflects what the user is committing to today.
+  const activeTasks = state.tasks.filter(t2 => t2.type === 'daily' || t2.type === 'weekly');
+  const doneCount = activeTasks.filter(t2 => isTaskDone(t2)).length;
+  document.getElementById('todayProgress').textContent = `${doneCount}/${activeTasks.length}`;
+
+  const onceTasks    = sortByDone(state.tasks.filter(task => task.type === 'once'));
+  // Weekly tasks live with daily on the task page under the 每日/定期 section.
+  const dailyTasks   = sortByDone(state.tasks.filter(task => task.type === 'daily' || task.type === 'weekly'));
 
   const rowWithDelete = (task) => `
     <div style="display: flex; align-items: center; gap: 8px; position: relative;">
-      <div style="flex:1;">${renderTaskRow(task)}</div>
+      <div style="flex:1;">${renderTaskRow(task, 'tasks')}</div>
       <button class="quick-btn" onclick="deleteTask('${task.id}')" style="padding: 6px 10px; font-size: 12px;">🗑</button>
     </div>
   `;
@@ -4265,6 +4487,7 @@ function startTaskPartial(id) {
   if (!state.partialStarts[t]) state.partialStarts[t] = [];
   if (state.partialStarts[t].includes(id)) return; // already started
   if (state.completions[t] && state.completions[t].includes(id)) return; // already done
+  if (task.type === 'weekly' && typeof isTaskDoneThisWeek === 'function' && isTaskDoneThisWeek(id)) return; // done this week
   // Grant half reward immediately.
   const diffRewards = [5, 15, 30, 60];
   let xp = Math.floor((diffRewards[task.difficulty - 1] || 0) * 0.5);
@@ -4757,7 +4980,7 @@ const I18N_MAP = {
   streak: { zh: '连续', en: 'Streak' },
   power: { zh: '综合成长值', en: 'Growth points' },
   today_quest: { zh: '今日主线', en: 'Today\u2019s quests' },
-  today_quest_sub: { zh: '今天只挑 3-5 件，不贪多 🌿', en: 'Pick just 3\u20135 things today \u2014 don\u2019t overdo it 🌿' },
+  today_quest_sub: { zh: '只挑 3-5 件，不贪多 🌿', en: 'Pick just 3\u20135 things \u2014 don\u2019t overdo it 🌿' },
   add_small_task: { zh: '+ 加一个小任务', en: '+ Add a small task' },
   five_dims: { zh: '五维能力', en: 'Five dimensions' },
   sleep_title: { zh: '昨晚几点睡？', en: 'When did you sleep last night?' },
@@ -4841,6 +5064,7 @@ const I18N_MAP = {
   d4: { zh: '🌲 大事 (+60)', en: '🌲 Big deal (+60)' },
   task_type: { zh: '类型', en: 'Type' },
   daily_short: { zh: '每日', en: 'Daily' },
+  weekly_short: { zh: '每周', en: 'Weekly' },
   once_short: { zh: '一次性', en: 'One-time' },
   cancel: { zh: '取消', en: 'Cancel' },
   save: { zh: '保存', en: 'Save' },
@@ -5382,15 +5606,21 @@ document.querySelectorAll('.tab').forEach(t => {
 
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => {
-    if (e.target === m) m.classList.remove('active');
+    if (e.target !== m) return;
+    // Use the comfort-modal-specific close path so the 10-minute rest
+    // timer is cleared cleanly on a backdrop dismiss.
+    if (m.id === 'comfortModal' && typeof closeComfortModal === 'function') {
+      closeComfortModal();
+    } else {
+      m.classList.remove('active');
+    }
   });
 });
 
-// Wire up comfort modal close buttons
+// Wire up the comfort-modal hug button — the right-side "rest" button now
+// owns its own click handler (installed in startRescueRestTimer / reset).
 (() => {
-  const closeBtn = document.getElementById('comfortCloseBtn');
   const hugBtn = document.getElementById('comfortHugBtn');
-  if (closeBtn) closeBtn.addEventListener('click', closeComfortModal);
   if (hugBtn) hugBtn.addEventListener('click', closeComfortModal);
 })();
 
