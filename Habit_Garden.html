@@ -258,6 +258,111 @@
     50% { transform: translateY(-6px); }
   }
 
+  /* ============ Level-up celebration (plant dances + sparkles + message) ============ */
+  /* Cute dance: mix of hop, wiggle, and scale pulse, overriding the default bob. */
+  .pet-svg.celebrating {
+    animation: petDance 1.6s cubic-bezier(.34,1.56,.64,1) 1;
+  }
+  @keyframes petDance {
+    0%   { transform: translateY(0)    rotate(0)    scale(1); }
+    15%  { transform: translateY(-14px) rotate(-8deg) scale(1.08); }
+    30%  { transform: translateY(-4px)  rotate(6deg)  scale(1.04); }
+    45%  { transform: translateY(-18px) rotate(-5deg) scale(1.12); }
+    60%  { transform: translateY(-2px)  rotate(4deg)  scale(1.02); }
+    75%  { transform: translateY(-10px) rotate(-3deg) scale(1.06); }
+    100% { transform: translateY(0)    rotate(0)    scale(1); }
+  }
+  /* Growing-up overlay: the previous stage is faded out while the new stage
+     scales in on top, so you see the moment of growth. */
+  .pet-stage-container { /* already positioned relative — needed for overlay */ }
+  .pet-growth-overlay {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    pointer-events: none;
+    animation: petGrowthMorph 1.4s ease-out forwards;
+  }
+  @keyframes petGrowthMorph {
+    0%   { opacity: 1; transform: translateX(-50%) scale(1); }
+    60%  { opacity: 0.5; transform: translateX(-50%) scale(0.7); }
+    100% { opacity: 0; transform: translateX(-50%) scale(0.4); }
+  }
+  /* Sparkle stars that burst outward from the plant on stage up. */
+  .pet-sparkle-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 4;
+  }
+  .pet-sparkle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    font-size: 18px;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    animation: sparkleFly 1.4s ease-out forwards;
+    text-shadow: 0 0 6px rgba(255, 220, 140, 0.7);
+  }
+  @keyframes sparkleFly {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+    20%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(1.1) rotate(var(--rot, 0deg)); }
+  }
+  /* Warm, translucent congratulatory banner that floats up above the plant. */
+  .pet-congrats {
+    position: absolute;
+    left: 50%;
+    top: 18px;
+    transform: translateX(-50%);
+    z-index: 5;
+    pointer-events: none;
+    background: linear-gradient(135deg, rgba(255, 245, 220, 0.85), rgba(255, 220, 200, 0.85));
+    color: #7a5a3e;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-family: 'Caveat', cursive;
+    font-size: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(200, 150, 100, 0.25);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: congratsFloat 2.8s ease-out forwards;
+  }
+  @keyframes congratsFloat {
+    0%   { opacity: 0; transform: translate(-50%, 8px) scale(0.85); }
+    15%  { opacity: 1; transform: translate(-50%, 0)   scale(1); }
+    70%  { opacity: 1; transform: translate(-50%, -10px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -24px) scale(0.95); }
+  }
+
+  /* ============ Firework (on every task completion) ============ */
+  .firework-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+  }
+  .firework-spark {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    opacity: 0;
+    animation: fireworkBurst 1s ease-out forwards;
+    box-shadow: 0 0 8px currentColor;
+  }
+  @keyframes fireworkBurst {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+    10%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--fx, 0px), var(--fy, 0px)) scale(0.3); }
+  }
+
   .pet-mood {
     margin-top: 14px;
     font-family: 'Caveat', cursive;
@@ -393,6 +498,23 @@
   .task.done .task-name {
     text-decoration: line-through;
     color: var(--ink-soft);
+  }
+  /* One-time task past its due date — pale red background, still actionable. */
+  .task.overdue {
+    background: linear-gradient(90deg, rgba(220, 130, 130, 0.22), rgba(220, 130, 130, 0.08));
+    border-color: rgba(200, 133, 133, 0.35);
+  }
+  /* Recurring task whose due date has passed — stays on the task page only,
+     dimmed so it's clear it's no longer active. */
+  .task.expired-recurring {
+    opacity: 0.55;
+    background: repeating-linear-gradient(
+      45deg,
+      var(--cream),
+      var(--cream) 8px,
+      var(--cream-2) 8px,
+      var(--cream-2) 16px
+    );
   }
 
   .task-check {
@@ -1134,9 +1256,10 @@
           <div class="pet-stage" id="petStage"></div>
         </div>
 
-        <div class="pet-stage-container">
+        <div class="pet-stage-container" id="petStageContainer">
           <div class="pet-ground"></div>
           <div class="pet-svg" id="petSvg"></div>
+          <div class="pet-sparkle-layer" id="petSparkleLayer"></div>
         </div>
         <div id="speciesBadge" style="text-align:center; margin-top:4px; font-size:12px; color:var(--ink-soft); min-height:16px;"></div>
         <div class="pet-mood" id="petMood"></div>
@@ -1343,10 +1466,13 @@
         <div id="moodRangeHint" style="margin-left:auto; color: var(--ink-soft); font-size:13px; align-self:center;"></div>
       </div>
 
-      <!-- Activity chart: line chart with two y-axes.
-           Left y = tasks completed per day. Right y = sleep tier (4 levels).
+      <!-- Activity chart: single-line chart of tasks completed per day.
            Reacts to the 周/月/年 tab selection above. -->
       <div id="activityChart" style="margin-top:14px;"></div>
+
+      <!-- Sleep time frequency rose chart: four petals, one per sleep tier,
+           with petal length = how often the user logged that tier in range. -->
+      <div id="sleepRoseChart" style="margin-top:18px;"></div>
 
       <div id="moodStats" style="margin-top:12px;"></div>
     </div>
@@ -1365,6 +1491,7 @@
 <button class="comfort-btn" onclick="todayNotOK()"><span style="font-size:18px; line-height:1;">☹️</span><span data-i18n="comfort" id="comfortBtnText">今天有点不行</span></button>
 
 <div class="toast-container" id="toastContainer"></div>
+<div class="firework-layer" id="fireworkLayer"></div>
 
 <!-- Species picker modal: appears when user clicks "我要自己选择植物" or when re-adopting -->
 <div class="modal-overlay" id="speciesPickerModal">
@@ -1503,6 +1630,16 @@
       </div>
     </div>
 
+    <hr style="border:none; border-top:1px solid var(--cream-2); margin:14px 0;">
+
+    <!-- App update -->
+    <div>
+      <div style="font-size:13px; color:var(--ink-soft); margin-bottom:6px;" data-i18n="reload_update_hint">点一下获取最新版本</div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="quick-btn" data-i18n="reload_update" onclick="reloadWithCacheBust()">🔄 加载更新</button>
+      </div>
+    </div>
+
     <div class="modal-actions" style="margin-top: 20px;">
       <button class="btn btn-ghost" data-i18n="close" onclick="closeSettingsModal()">关掉</button>
     </div>
@@ -1565,6 +1702,13 @@
         <option value="medium" selected data-i18n="ease_medium">一般</option>
         <option value="hard" data-i18n="ease_hard">有点难开始</option>
       </select>
+    </div>
+    <div class="form-group">
+      <label data-i18n="task_due">截止日期（可选）</label>
+      <input type="date" id="taskDueDateInput">
+      <div style="font-size:12px; color:var(--ink-soft); margin-top:6px;" data-i18n="task_due_hint">
+        定期任务过期后自动隐藏；一次性任务过期会变成淡红色提醒。
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" data-i18n="cancel" onclick="closeTaskModal()">取消</button>
@@ -3618,8 +3762,9 @@ function completeTask(taskId, partial = false) {
     }
     state.lastCompletionDate = t;
   }
+  const prevStage = state.pet.stage;
   const newStage = getPetStage();
-  if (newStage > state.pet.stage) {
+  if (newStage > prevStage) {
     state.pet.stage = newStage;
     setTimeout(() => {
       toast(T(`${state.pet.name}进化了！现在是 ${PET_STAGES[newStage].name} 🎉`, `${state.pet.name} evolved! Now a ${PET_STAGES[newStage].nameEn} 🎉`), '🎊');
@@ -3633,6 +3778,12 @@ function completeTask(taskId, partial = false) {
   }
   save();
   renderAll();
+  // Firework on every task completion (including partial starts).
+  try { playFirework(); } catch (e) {}
+  // Level-up celebration — run after renderAll so the plant SVG is the new stage.
+  if (newStage > prevStage) {
+    try { triggerStageUpCelebration(prevStage, newStage); } catch (e) {}
+  }
 }
 
 function uncompleteTask(taskId) {
@@ -3830,12 +3981,17 @@ function logSleep(type) {
   } else {
     toast(T('记录了。熬夜的话，今天对自己温柔一点 🫂', 'Logged. If it was a late one, be gentle with yourself today 🫂'), '🌙');
   }
+  const prevStage = state.pet.stage;
   const newStage = getPetStage();
-  if (newStage > state.pet.stage) {
+  const didStageUp = newStage > prevStage;
+  if (didStageUp) {
     state.pet.stage = newStage;
   }
   save();
   renderAll();
+  if (didStageUp) {
+    try { triggerStageUpCelebration(prevStage, newStage); } catch (e) {}
+  }
 }
 
 function saveJournal() {
@@ -4156,6 +4312,125 @@ function renderHeader() {
     : `${d.getMonth()+1}月${d.getDate()}日 · ${weekdaysZh[d.getDay()]}`;
 }
 
+/* ==================== Celebration animations ====================
+   triggerStageUpCelebration shows the plant dancing, sparkles flying out,
+   the previous stage fading into the new stage, and a warm translucent
+   congratulatory banner. playFirework launches a burst of colored sparks
+   at the top of the page on every task completion. Both are deliberately
+   short so they feel like "nudges of joy" rather than interruptions. */
+const STAGE_UP_MESSAGES_ZH = [
+  '又长大啦，慢慢来就好 🌱',
+  '你看，它在跟着你一起成长 🌸',
+  '温柔的坚持，正在开花 🌷',
+  '每一步都算数 ✨',
+  '好好生活的你，真的很棒 💛',
+  '它悄悄发芽了，被你养得很好 🌿',
+];
+const STAGE_UP_MESSAGES_EN = [
+  'A little bigger today — no rush 🌱',
+  'Look, it\u2019s growing alongside you 🌸',
+  'Gentle persistence is blooming 🌷',
+  'Every step counts ✨',
+  'You\u2019re doing a beautiful job 💛',
+  'It sprouted quietly — you\u2019ve cared for it well 🌿',
+];
+function _pickStageUpMessage() {
+  const list = getLang() === 'en' ? STAGE_UP_MESSAGES_EN : STAGE_UP_MESSAGES_ZH;
+  return list[Math.floor(Math.random() * list.length)];
+}
+function triggerStageUpCelebration(fromStage, toStage) {
+  const container = document.getElementById('petStageContainer');
+  const petSvg = document.getElementById('petSvg');
+  const sparkleLayer = document.getElementById('petSparkleLayer');
+  if (!container || !petSvg) return;
+
+  // (1) The plant dances — override the gentle bob with a one-shot wiggle.
+  petSvg.classList.remove('celebrating');
+  // Force reflow so restarting the animation actually replays.
+  void petSvg.offsetWidth;
+  petSvg.classList.add('celebrating');
+  setTimeout(() => petSvg.classList.remove('celebrating'), 1700);
+
+  // (2) Growth transition — show the previous stage's SVG briefly fading
+  // out on top of the new one, so the user perceives the "grew up" moment.
+  if (typeof getPetSvg === 'function' && typeof fromStage === 'number' && fromStage < toStage) {
+    const mood = (typeof getPetMood === 'function') ? getPetMood() : 'happy';
+    const overlay = document.createElement('div');
+    overlay.className = 'pet-growth-overlay';
+    overlay.innerHTML = getPetSvg(fromStage, mood);
+    container.appendChild(overlay);
+    setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1500);
+  }
+
+  // (3) Sparkle burst — scatter stars outward from the plant.
+  if (sparkleLayer) {
+    const glyphs = ['✨','🌟','⭐','💫','✦','✧'];
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement('span');
+      s.className = 'pet-sparkle';
+      s.textContent = glyphs[Math.floor(Math.random() * glyphs.length)];
+      // Random angle + distance; bias upward so most rise above the plant.
+      const angle = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.6;
+      const dist = 80 + Math.random() * 60;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      s.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+      s.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+      s.style.setProperty('--rot', `${(Math.random() * 120 - 60).toFixed(0)}deg`);
+      s.style.fontSize = `${14 + Math.round(Math.random() * 10)}px`;
+      s.style.animationDelay = `${(Math.random() * 0.25).toFixed(2)}s`;
+      sparkleLayer.appendChild(s);
+      setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); }, 1900);
+    }
+  }
+
+  // (4) Warm, translucent congratulatory banner hovering above the plant.
+  const banner = document.createElement('div');
+  banner.className = 'pet-congrats';
+  const stageName = (typeof getPetStageName === 'function') ? getPetStageName(toStage) : '';
+  const msg = _pickStageUpMessage();
+  banner.textContent = stageName ? `${stageName} · ${msg}` : msg;
+  container.appendChild(banner);
+  setTimeout(() => { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 2900);
+}
+
+/* Launch a quick firework burst at the top-center of the viewport. Called
+   on every task completion to give a little visual reward. */
+function playFirework() {
+  const layer = document.getElementById('fireworkLayer');
+  if (!layer) return;
+  // Anchor near the pet card if it's visible, else top-center of viewport.
+  const anchor = document.getElementById('petStageContainer');
+  let cx, cy;
+  if (anchor) {
+    const rect = anchor.getBoundingClientRect();
+    cx = rect.left + rect.width / 2;
+    cy = rect.top + rect.height * 0.45;
+  } else {
+    cx = window.innerWidth / 2;
+    cy = Math.min(140, window.innerHeight * 0.25);
+  }
+  const colors = ['#e8b896','#d88671','#e8c47a','#9ec7a6','#7ba3b5','#c78ab3','#f3d388'];
+  const n = 22;
+  for (let i = 0; i < n; i++) {
+    const spark = document.createElement('span');
+    spark.className = 'firework-spark';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    spark.style.color = color;
+    spark.style.background = color;
+    spark.style.left = `${cx}px`;
+    spark.style.top = `${cy}px`;
+    const angle = (i / n) * Math.PI * 2 + Math.random() * 0.35;
+    const dist = 60 + Math.random() * 70;
+    spark.style.setProperty('--fx', `${(Math.cos(angle) * dist).toFixed(1)}px`);
+    spark.style.setProperty('--fy', `${(Math.sin(angle) * dist).toFixed(1)}px`);
+    spark.style.animationDuration = `${(0.8 + Math.random() * 0.4).toFixed(2)}s`;
+    layer.appendChild(spark);
+    setTimeout(() => { if (spark.parentNode) spark.parentNode.removeChild(spark); }, 1300);
+  }
+}
+
 function renderPet() {
   ensurePetFields();
   document.getElementById('petName').textContent = state.pet.name;
@@ -4258,6 +4533,10 @@ function ensureTaskMetadata() {
     if (task.easyToStart !== 'easy' && task.easyToStart !== 'medium' && task.easyToStart !== 'hard') {
       task.easyToStart = 'medium';
     }
+    // Normalize dueDate — must be YYYY-MM-DD or null. Drop malformed values.
+    if (!task.dueDate || typeof task.dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate)) {
+      task.dueDate = null;
+    }
   });
   const taskIds = new Set(state.tasks.map(task => task.id));
   state.pinnedTaskIds = state.pinnedTaskIds.filter(id => taskIds.has(id));
@@ -4320,6 +4599,12 @@ function isTaskDoneThisWeek(taskId) {
   }
   return false;
 }
+/* A task is overdue when it has a dueDate set and today's date is strictly
+   after that date. dueDate strings are YYYY-MM-DD so string comparison works. */
+function isTaskOverdue(task) {
+  if (!task || !task.dueDate) return false;
+  return todayStr() > task.dueDate;
+}
 
 function renderTasks() {
   ensureTaskMetadata();
@@ -4348,6 +4633,12 @@ function renderTasks() {
     const remainXp = fullXp - halfXp;
     const isPinned = pinnedTaskIds.includes(task.id);
     const isMust = mustDoTodayIds.includes(task.id);
+    const overdue = isTaskOverdue(task);
+    // Recurring overdue tasks get hatched/dimmed styling on the task page; one-time overdue tasks get pale red.
+    const isRecurring = (task.type === 'daily' || task.type === 'weekly');
+    const overdueClass = overdue
+      ? (isRecurring ? 'expired-recurring' : 'overdue')
+      : '';
     let actions = '';
     if (done) {
       actions = `<button class="task-undo-btn" onclick="event.stopPropagation(); uncompleteTask('${task.id}')" title="${T('取消打卡','Un-check')}">✓ ${T('已完成','Done')} · ${T('点此撤销','undo')}</button>`;
@@ -4368,6 +4659,7 @@ function renderTasks() {
     if (mode === 'home') {
       if (isPinned) metaTags += `<span class="tag">${T('📌 置顶中','📌 Pinned')}</span>`;
       if (isMust)   metaTags += `<span class="tag">${T('⭐ 今天必做','⭐ Must today')}</span>`;
+      if (overdue)  metaTags += `<span class="tag">${T('⏰ 已过期','⏰ Overdue')}</span>`;
     } else {
       metaTags += `<span class="tag">${dimIcons[task.dim]} ${dimNames[task.dim]}</span>`;
       metaTags += `<span class="tag">${diffTags[task.difficulty - 1]}</span>`;
@@ -4375,6 +4667,11 @@ function renderTasks() {
       if (task.type === 'weekly') metaTags += `<span class="tag">${T('每周','Weekly')}</span>`;
       if (isPinned) metaTags += `<span class="tag">${T('📌 置顶中','📌 Pinned')}</span>`;
       if (isMust)   metaTags += `<span class="tag">${T('⭐ 今天必做','⭐ Must today')}</span>`;
+      if (task.dueDate) {
+        metaTags += overdue
+          ? `<span class="tag">${T('⏰ 已过期 ' + task.dueDate, '⏰ Overdue ' + task.dueDate)}</span>`
+          : `<span class="tag">${T('📅 截止 ' + task.dueDate, '📅 Due ' + task.dueDate)}</span>`;
+      }
     }
     // Manage controls (pin / must-do toggles) are shown on both home and
     // task page so the user can mark items without switching views.
@@ -4387,7 +4684,7 @@ function renderTasks() {
       `
       : '';
     return `
-      <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''}" data-task-id="${task.id}">
+      <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''} ${overdueClass}" data-task-id="${task.id}">
         <div class="task-body">
           <div class="task-name">${escapeHtml(task.name)}</div>
           <div class="task-meta">${metaTags}</div>
@@ -4436,9 +4733,12 @@ function renderTasks() {
   });
 
   // Home candidates: dailies, weekly not yet done this week, one-time not yet done.
+  // Recurring (daily/weekly) tasks past their due date are hidden from home —
+  // one-time tasks stay visible but get pale-red styling via renderTaskRow.
   const homeCandidates = state.tasks.filter(task => {
-    if (task.type === 'daily')  return true;
-    if (task.type === 'weekly') return !isTaskDoneThisWeek(task.id);
+    const overdue = isTaskOverdue(task);
+    if (task.type === 'daily')  return !overdue;
+    if (task.type === 'weekly') return !overdue && !isTaskDoneThisWeek(task.id);
     if (task.type === 'once')   return !todayDone.includes(task.id);
     return false;
   });
@@ -4490,8 +4790,9 @@ function renderTasks() {
   `;
 
   // Progress counter: include both daily and weekly "active" tasks so the
-  // ratio still reflects what the user is committing to today.
-  const activeTasks = state.tasks.filter(t2 => t2.type === 'daily' || t2.type === 'weekly');
+  // ratio still reflects what the user is committing to today. Expired
+  // recurring tasks drop out so the ratio doesn't get stuck at <100%.
+  const activeTasks = state.tasks.filter(t2 => (t2.type === 'daily' || t2.type === 'weekly') && !isTaskOverdue(t2));
   const doneCount = activeTasks.filter(t2 => isTaskDone(t2)).length;
   document.getElementById('todayProgress').textContent = `${doneCount}/${activeTasks.length}`;
 
@@ -4581,9 +4882,21 @@ function finishAfterStart(id) {
     state.lastStreakDate = t;
   }
   syncHarvestAfterXpChange();
+  const prevStage = state.pet.stage;
+  const newStage = getPetStage();
+  if (newStage > prevStage) {
+    state.pet.stage = newStage;
+    setTimeout(() => {
+      toast(T(`${state.pet.name}进化了！现在是 ${PET_STAGES[newStage].name} 🎉`, `${state.pet.name} evolved! Now a ${PET_STAGES[newStage].nameEn} 🎉`), '🎊');
+    }, 400);
+  }
   save();
   renderAll();
   toast(T(`完成「${task.name}」 +${xp}xp +${stars}✨`, `Done: "${task.name}" +${xp}xp +${stars}✨`), '✨');
+  try { playFirework(); } catch (e) {}
+  if (newStage > prevStage) {
+    try { triggerStageUpCelebration(prevStage, newStage); } catch (e) {}
+  }
 }
 
 function deleteTask(id) {
@@ -4771,10 +5084,8 @@ function _localKey(d){
 /* Map a stored sleep label ('before23' | 'before24' | 'before1' | 'late')
    to a 4-tier value where higher = earlier/healthier. Missing = null. */
 const SLEEP_TIERS = { before23: 4, before24: 3, before1: 2, late: 1 };
-/* Dual-axis line chart for the mood panel:
-   - x axis: days in the selected range (week/month/year)
-   - left y: tasks completed that day (count)
-   - right y: sleep tier (1..4) with 4 = 23点前 on top, 1 = 更晚 on bottom
+/* Single-axis line chart for the mood panel showing task completions per day.
+   Sleep data is now displayed separately as a frequency rose chart below.
    Rendered as inline SVG so there's no extra dependency. */
 function renderActivityChart(range){
   const host = document.getElementById('activityChart');
@@ -4791,7 +5102,6 @@ function renderActivityChart(range){
       key,
       date: d,
       count: (state.completions && state.completions[key] ? state.completions[key].length : 0),
-      sleep: state.sleep && state.sleep[key] ? state.sleep[key] : null,
     });
   }
   // For the yearly view we aggregate by week so the chart stays legible.
@@ -4801,46 +5111,25 @@ function renderActivityChart(range){
     for (let i = 0; i < items.length; i += 7) {
       const slice = items.slice(i, i + 7);
       const totalCount = slice.reduce((a,b) => a + b.count, 0);
-      // Average sleep tier across the slice (only over days that had a value).
-      const tiers = slice.map(s => SLEEP_TIERS[s.sleep]).filter(v => v != null);
-      const avgTier = tiers.length ? (tiers.reduce((a,b) => a+b, 0) / tiers.length) : null;
       buckets.push({
         key: slice[0].key,
         date: slice[Math.floor(slice.length/2)].date,
         count: totalCount,
-        sleepTier: avgTier,
       });
     }
-  } else {
-    buckets = items.map(it => ({ ...it, sleepTier: it.sleep ? SLEEP_TIERS[it.sleep] : null }));
   }
 
   const W = 680, H = 180;
-  const padL = 36, padR = 44, padT = 14, padB = 32;
+  const padL = 36, padR = 20, padT = 14, padB = 32;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
   const n = buckets.length;
   const xFor = (i) => n <= 1 ? padL + plotW/2 : padL + (i / (n - 1)) * plotW;
   const maxCount = Math.max(1, ...buckets.map(b => b.count));
-  // Left axis range: 0..maxCount.
   const yLeft = (v) => padT + plotH - (v / maxCount) * plotH;
-  // Right axis range: 1..4 (4 = earliest sleep = top of chart).
-  const yRight = (t) => padT + plotH - ((t - 1) / 3) * plotH;
 
-  // Build the task-count polyline (skip zero stretches so flatline weeks
-  // don't look like a giant gap).
   const pathCount = buckets.map((b, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(1)} ${yLeft(b.count).toFixed(1)}`).join(' ');
 
-  // Sleep line — skip buckets where we have no data (NaN-safe).
-  let pathSleep = '';
-  let prevValid = false;
-  buckets.forEach((b, i) => {
-    if (b.sleepTier == null) { prevValid = false; return; }
-    pathSleep += `${prevValid ? 'L' : 'M'} ${xFor(i).toFixed(1)} ${yRight(b.sleepTier).toFixed(1)} `;
-    prevValid = true;
-  });
-
-  // Tick labels for the x-axis — roughly 5 evenly-spaced entries.
   const tickCount = Math.min(n, 5);
   const tickIdx = [];
   for (let k = 0; k < tickCount; k++) {
@@ -4857,33 +5146,18 @@ function renderActivityChart(range){
     }
   };
 
-  // Left y-axis ticks (0, mid, max).
   const leftTicks = [0, Math.round(maxCount/2), maxCount].filter((v,i,a) => a.indexOf(v) === i);
-  const rightTicks = [
-    { t: 4, lblZh: '23前', lblEn: '<23' },
-    { t: 3, lblZh: '24前', lblEn: '<24' },
-    { t: 2, lblZh: '1点前', lblEn: '<1am' },
-    { t: 1, lblZh: '更晚', lblEn: 'later' },
-  ];
-
   const gridLines = leftTicks.map(v => `<line x1="${padL}" y1="${yLeft(v)}" x2="${padL + plotW}" y2="${yLeft(v)}" stroke="#e8decf" stroke-width="1"/>`).join('');
   const leftLabels = leftTicks.map(v => `<text x="${padL - 6}" y="${yLeft(v) + 3}" font-size="10" fill="#a88e70" text-anchor="end">${v}</text>`).join('');
-  const rightLabels = rightTicks.map(rt => `<text x="${padL + plotW + 6}" y="${yRight(rt.t) + 3}" font-size="10" fill="#8aa3b5" text-anchor="start">${en?rt.lblEn:rt.lblZh}</text>`).join('');
   const xLabels = tickIdx.map(i => {
     const b = buckets[i];
     if (!b) return '';
     return `<text x="${xFor(i)}" y="${H - 10}" font-size="10" fill="#a88e70" text-anchor="middle">${xLabel(b.date)}</text>`;
   }).join('');
 
-  // Dots on each bucket for the task line (so single points still render).
   const countDots = buckets.map((b, i) => `<circle cx="${xFor(i)}" cy="${yLeft(b.count)}" r="2.4" fill="#d88671"/>`).join('');
-  const sleepDots = buckets.map((b, i) => b.sleepTier == null
-    ? ''
-    : `<circle cx="${xFor(i)}" cy="${yRight(b.sleepTier)}" r="2.4" fill="#7ba3b5"/>`
-  ).join('');
 
   const legendTasks = en ? 'Tasks done' : '完成任务';
-  const legendSleep = en ? 'Sleep time' : '睡眠时间';
   const subtitle = en
     ? `${r === 'week' ? 'Past week' : r === 'month' ? 'Past month' : 'Past year'}`
     : `${r === 'week' ? '过去一周' : r === 'month' ? '过去一月' : '过去一年'}`;
@@ -4891,19 +5165,125 @@ function renderActivityChart(range){
   host.innerHTML = `
     <div style="display:flex; align-items:center; gap:14px; font-size:12px; color:var(--ink-soft); margin-bottom:6px; flex-wrap:wrap;">
       <div style="display:inline-flex; align-items:center; gap:6px;"><span style="display:inline-block; width:12px; height:3px; background:#d88671; border-radius:2px;"></span>${legendTasks}</div>
-      <div style="display:inline-flex; align-items:center; gap:6px;"><span style="display:inline-block; width:12px; height:3px; background:#7ba3b5; border-radius:2px;"></span>${legendSleep}</div>
       <div style="margin-left:auto;">${subtitle}</div>
     </div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" style="max-height:220px; display:block;">
       ${gridLines}
       ${leftLabels}
-      ${rightLabels}
       ${xLabels}
       ${pathCount ? `<path d="${pathCount}" stroke="#d88671" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
       ${countDots}
-      ${pathSleep ? `<path d="${pathSleep}" stroke="#7ba3b5" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3"/>` : ''}
-      ${sleepDots}
     </svg>
+  `;
+}
+
+/* Sleep time frequency rose chart — four petals at 12/3/6/9 o'clock, each
+   petal's length proportional to how often the user logged that sleep tier
+   within the selected range. Rendered as inline SVG. */
+function renderSleepRose(range){
+  const host = document.getElementById('sleepRoseChart');
+  if (!host) return;
+  const r = range || _moodRange || 'week';
+  const days = r === 'week' ? 7 : r === 'month' ? 30 : 365;
+  const now = new Date(); now.setHours(0,0,0,0);
+  // Count frequency for each sleep tier across the range.
+  const counts = { before23: 0, before24: 0, before1: 0, late: 0 };
+  let totalLogged = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now); d.setDate(now.getDate() - i);
+    const key = _localKey(d);
+    const s = state.sleep && state.sleep[key];
+    if (s && counts.hasOwnProperty(s)) { counts[s] += 1; totalLogged += 1; }
+  }
+  const en = getLang() === 'en';
+  // Four petals — 12 o'clock = 23前 (earliest/best), then clockwise by hour.
+  const petals = [
+    { key:'before23', label: en?'Before 23':'23点前', angle: 270, color:'#7ba3b5', count: counts.before23 },
+    { key:'before24', label: en?'Before 24':'24点前', angle: 0,   color:'#9ec7a6', count: counts.before24 },
+    { key:'before1',  label: en?'Before 1am':'1点前', angle: 90,  color:'#e8c47a', count: counts.before1 },
+    { key:'late',     label: en?'Later':'更晚',      angle: 180, color:'#d88671', count: counts.late },
+  ];
+  const W = 320, H = 280;
+  const cx = W/2, cy = H/2 + 6;
+  const rMax = 100; // maximum petal length
+  const maxCount = Math.max(1, ...petals.map(p => p.count));
+
+  // Concentric reference rings (quartiles of maxCount).
+  const ringRadii = [rMax*0.25, rMax*0.5, rMax*0.75, rMax];
+  const rings = ringRadii.map(rr =>
+    `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="#e8decf" stroke-width="1" stroke-dasharray="2 3"/>`
+  ).join('');
+
+  // Radial tick labels (approx. counts along the top radius).
+  const ringLabels = ringRadii.map(rr => {
+    const v = Math.round((rr / rMax) * maxCount);
+    return `<text x="${cx + 4}" y="${cy - rr + 3}" font-size="9" fill="#b8a088">${v}</text>`;
+  }).join('');
+
+  // Each petal is a rounded teardrop: a quadratic arc from center out to
+  // the tip and back, slightly fatter mid-way. We use a simple path.
+  const petalPaths = petals.map(p => {
+    const len = (p.count / maxCount) * rMax;
+    if (len < 2) return '';
+    const a = (p.angle * Math.PI) / 180;
+    const tipX = cx + Math.cos(a) * len;
+    const tipY = cy + Math.sin(a) * len;
+    // Two side control points offset perpendicular to the petal axis.
+    const half = len * 0.45;
+    const perp = a + Math.PI / 2;
+    const leftX  = cx + Math.cos(perp) * half - Math.cos(a) * (len*0.2);
+    const leftY  = cy + Math.sin(perp) * half - Math.sin(a) * (len*0.2);
+    const rightX = cx - Math.cos(perp) * half - Math.cos(a) * (len*0.2);
+    const rightY = cy - Math.sin(perp) * half - Math.sin(a) * (len*0.2);
+    const d = `M ${cx} ${cy} Q ${leftX.toFixed(1)} ${leftY.toFixed(1)} ${tipX.toFixed(1)} ${tipY.toFixed(1)} Q ${rightX.toFixed(1)} ${rightY.toFixed(1)} ${cx} ${cy} Z`;
+    return `<path d="${d}" fill="${p.color}" fill-opacity="0.55" stroke="${p.color}" stroke-width="1.2"/>`;
+  }).join('');
+
+  // Labels placed just outside each petal's direction.
+  const labels = petals.map(p => {
+    const a = (p.angle * Math.PI) / 180;
+    const lr = rMax + 20;
+    const lx = cx + Math.cos(a) * lr;
+    const ly = cy + Math.sin(a) * lr;
+    const anchor = p.angle === 270 || p.angle === 90 ? 'middle' : (p.angle === 0 ? 'start' : 'end');
+    return `
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" fill="#7a5a3e" text-anchor="${anchor}" dominant-baseline="middle" font-weight="600">${p.label}</text>
+      <text x="${lx.toFixed(1)}" y="${(ly + 14).toFixed(1)}" font-size="10" fill="#a88e70" text-anchor="${anchor}" dominant-baseline="middle">${p.count}</text>
+    `;
+  }).join('');
+
+  const subtitle = en
+    ? `${r === 'week' ? 'Past week' : r === 'month' ? 'Past month' : 'Past year'} · ${totalLogged} ${totalLogged === 1 ? 'night logged' : 'nights logged'}`
+    : `${r === 'week' ? '过去一周' : r === 'month' ? '过去一月' : '过去一年'} · 共记录 ${totalLogged} 晚`;
+
+  const title = en ? 'Sleep time · frequency rose' : '睡眠时间 · 频率玫瑰图';
+  const emptyMsg = en ? 'No sleep logs yet in this range' : '这段时间还没有记录睡眠';
+
+  if (!totalLogged) {
+    host.innerHTML = `
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#7ba3b5;"></span>${title}</span>
+        <span style="margin-left:auto;">${subtitle}</span>
+      </div>
+      <div class="empty" style="padding:14px 0;">${emptyMsg}</div>
+    `;
+    return;
+  }
+
+  host.innerHTML = `
+    <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span style="display:inline-flex; align-items:center; gap:6px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#7ba3b5;"></span>${title}</span>
+      <span style="margin-left:auto;">${subtitle}</span>
+    </div>
+    <div style="display:flex; justify-content:center;">
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:360px; display:block;">
+        ${rings}
+        ${ringLabels}
+        ${petalPaths}
+        <circle cx="${cx}" cy="${cy}" r="3" fill="#7a5a3e"/>
+        ${labels}
+      </svg>
+    </div>
   `;
 }
 
@@ -4938,6 +5318,7 @@ function openTaskModal(task = null) {
   document.getElementById('taskDifficultyInput').value = task ? task.difficulty : 2;
   document.getElementById('taskTypeInput').value = task ? task.type : 'daily';
   document.getElementById('taskEaseInput').value = (task && task.easyToStart) ? task.easyToStart : 'medium';
+  document.getElementById('taskDueDateInput').value = (task && task.dueDate) ? task.dueDate : '';
   document.getElementById('taskModal').classList.add('active');
   setTimeout(() => document.getElementById('taskNameInput').focus(), 100);
 }
@@ -4949,12 +5330,15 @@ function saveTask() {
   const name = document.getElementById('taskNameInput').value.trim();
   if (!name) { toast(T('给任务起个名字吧~','Give this task a name ~'), '✏'); return; }
   const easeVal = document.getElementById('taskEaseInput').value;
+  const rawDue = (document.getElementById('taskDueDateInput').value || '').trim();
+  const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDue) ? rawDue : null;
   const payload = {
     name,
     dim: document.getElementById('taskDimInput').value,
     difficulty: parseInt(document.getElementById('taskDifficultyInput').value),
     type: document.getElementById('taskTypeInput').value,
     easyToStart: (easeVal === 'easy' || easeVal === 'hard') ? easeVal : 'medium',
+    dueDate,
   };
   if (editingTaskId) {
     const t = state.tasks.find(t => t.id === editingTaskId);
@@ -5088,6 +5472,8 @@ const I18N_MAP = {
   export: { zh: '📥 导出数据', en: '📥 Export data' },
   import: { zh: '📤 导入数据', en: '📤 Import data' },
   reset: { zh: '🗑 全部重置', en: '🗑 Reset everything' },
+  reload_update: { zh: '🔄 加载更新', en: '🔄 Reload update' },
+  reload_update_hint: { zh: '点一下获取最新版本', en: 'Tap to fetch the latest version' },
   comfort: { zh: '今天有点不行', en: 'Today’s a bit much' },
   // modals
   new_task_h: { zh: '新任务', en: 'New task' },
@@ -5108,6 +5494,8 @@ const I18N_MAP = {
   ease_easy: { zh: '很容易开始', en: 'Very easy to start' },
   ease_medium: { zh: '一般', en: 'Medium' },
   ease_hard: { zh: '有点难开始', en: 'A bit hard to start' },
+  task_due: { zh: '截止日期（可选）', en: 'Due date (optional)' },
+  task_due_hint: { zh: '定期任务过期后自动隐藏；一次性任务过期会变成淡红色提醒。', en: 'Recurring tasks hide after the due date; one-time tasks turn pale red as a nudge.' },
   cancel: { zh: '取消', en: 'Cancel' },
   save: { zh: '保存', en: 'Save' },
   add_reward_h: { zh: '添加我想要的奖励', en: 'Add a reward I want' },
@@ -5193,6 +5581,19 @@ function openSettingsModal(){
 }
 function closeSettingsModal(){
   document.getElementById('settingsModal').classList.remove('active');
+}
+/* Force-reload the page bypassing any cached copy by appending a timestamp
+   query string. Used by the "加载更新 / Reload update" button in Settings. */
+function reloadWithCacheBust(){
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', Date.now().toString());
+    window.location.replace(url.toString());
+  } catch (e) {
+    // Fallback for very old browsers / weird URLs
+    const sep = window.location.href.indexOf('?') >= 0 ? '&' : '?';
+    window.location.href = window.location.href + sep + 'v=' + Date.now();
+  }
 }
 /* Auth is now inline inside the settings modal. These kept-for-safety shims
    just route through openSettingsModal so any legacy call sites still work. */
@@ -5468,8 +5869,10 @@ function renderMood(){
     el.style.color = active ? '#fff' : 'var(--ink)';
   });
 
-  // Draw the dual-axis activity line chart that shares the same 周/月/年 tabs.
+  // Draw the task-completion line chart that shares the same 周/月/年 tabs.
   if (typeof renderActivityChart === 'function') renderActivityChart(_moodRange);
+  // Draw the sleep frequency rose chart (independent of the tasks line).
+  if (typeof renderSleepRose === 'function') renderSleepRose(_moodRange);
 
   const statsEl = document.getElementById('moodStats');
   if(!entries.length){
