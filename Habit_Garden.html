@@ -80,27 +80,15 @@
 
   .logo-icon {
     display: inline-block;
-    width: 36px;
-    height: 36px;
-    background: var(--moss);
-    border-radius: 50%;
-    position: relative;
-    transform: translateY(6px);
-    box-shadow: 0 3px 0 var(--moss-deep);
+    width: 40px;
+    height: 40px;
+    transform: translateY(8px);
+    animation: logoBloom 4s ease-in-out infinite;
   }
-  .logo-icon::before, .logo-icon::after {
-    content: '';
-    position: absolute;
-    background: var(--moss-deep);
-    border-radius: 50%;
-  }
-  .logo-icon::before {
-    width: 5px; height: 5px;
-    top: 13px; left: 10px;
-  }
-  .logo-icon::after {
-    width: 5px; height: 5px;
-    top: 13px; right: 10px;
+  .logo-icon svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  @keyframes logoBloom {
+    0%, 100% { transform: translateY(8px) rotate(-2deg); }
+    50%      { transform: translateY(6px) rotate(3deg); }
   }
 
   .logo-sub {
@@ -362,6 +350,58 @@
     10%  { opacity: 1; }
     100% { opacity: 0; transform: translate(var(--fx, 0px), var(--fy, 0px)) scale(0.3); }
   }
+
+  /* ============ Coin drop (fires every wish redemption) ============ */
+  .coin-spark {
+    position: absolute;
+    font-size: 22px;
+    opacity: 0;
+    pointer-events: none;
+    animation: coinFall 1.2s cubic-bezier(.4,.0,.6,1) forwards;
+    filter: drop-shadow(0 2px 2px rgba(180, 140, 40, 0.35));
+  }
+  @keyframes coinFall {
+    0%   { opacity: 0; transform: translate(-50%, 0) rotate(0) scale(0.5); }
+    15%  { opacity: 1; transform: translate(calc(-50% + var(--cdx, 0px) * 0.3), -24px) rotate(80deg) scale(1); }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--cdx, 0px)), var(--cdy, 180px)) rotate(360deg) scale(0.85); }
+  }
+
+  /* ============ Wish-shop icon picker (replaces free-text emoji input) ============ */
+  .shop-icon-picker {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--cream);
+    border-radius: 14px;
+    border: 1.5px solid var(--cream-2);
+  }
+  .shop-icon-opt {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+    background: #fff;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    user-select: none;
+  }
+  .shop-icon-opt:hover {
+    transform: scale(1.08);
+    border-color: var(--butter);
+  }
+  .shop-icon-opt.selected {
+    border-color: var(--moss);
+    background: linear-gradient(135deg, rgba(122,155,110,0.22), rgba(122,155,110,0.06));
+  }
+  .shop-icon-picker::-webkit-scrollbar { width: 6px; }
+  .shop-icon-picker::-webkit-scrollbar-thumb { background: var(--cream-2); border-radius: 3px; }
 
   .pet-mood {
     margin-top: 14px;
@@ -1212,7 +1252,26 @@
 
   <header class="header">
     <div class="logo">
-      <span class="logo-icon"></span>
+      <span class="logo-icon" aria-hidden="true">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <!-- tiny mossy leaf tucked behind the flower -->
+          <ellipse cx="7" cy="30" rx="5.5" ry="3" fill="#7a9b6e" transform="rotate(-30 7 30)"/>
+          <ellipse cx="7" cy="30" rx="5.5" ry="3" fill="none" stroke="#4a6b47" stroke-width="0.8" transform="rotate(-30 7 30)"/>
+          <!-- 5 peach petals arranged around the center -->
+          <g>
+            <circle cx="20" cy="9.5"  r="7" fill="#f2a78d"/>
+            <circle cx="28.5" cy="16" r="7" fill="#f2a78d"/>
+            <circle cx="25"   cy="27" r="7" fill="#f2a78d"/>
+            <circle cx="15"   cy="27" r="7" fill="#f2a78d"/>
+            <circle cx="11.5" cy="16" r="7" fill="#f2a78d"/>
+          </g>
+          <!-- warm butter center -->
+          <circle cx="20" cy="19" r="5.8" fill="#f3d388"/>
+          <circle cx="20" cy="19" r="5.8" fill="none" stroke="#d88671" stroke-width="0.8" opacity="0.5"/>
+          <!-- tiny highlight for cuteness -->
+          <circle cx="18" cy="17.2" r="1.6" fill="#fff" opacity="0.75"/>
+        </svg>
+      </span>
       <div>
         <span data-i18n="app_title">习惯小花园</span>
         <div class="logo-sub">a garden for your better self 🌱</div>
@@ -1728,8 +1787,9 @@
       <input id="shopNameInput" data-i18n-ph="reward_name_ph" placeholder="例如：看一集喜欢的剧">
     </div>
     <div class="form-group">
-      <label data-i18n="reward_icon">图标（一个 emoji）</label>
-      <input id="shopIconInput" placeholder="🎬" maxlength="4">
+      <label data-i18n="reward_icon">选一个图标</label>
+      <input type="hidden" id="shopIconInput" value="🎁">
+      <div id="shopIconPicker" class="shop-icon-picker"></div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -3911,7 +3971,34 @@ function rarityText(r) {
   return { common: '普通', rare: '稀有', epic: '珍藏', legendary: '传说' }[r];
 }
 
-function buyShopItem(id) {
+/* Coin-drop celebration — spawns a handful of gold-coin emojis that fall
+   from the clicked shop button, drifting slightly horizontally. Purely
+   decorative; clears itself after the animation ends. */
+function playCoinDrop(originX, originY, count) {
+  const layer = document.getElementById('fireworkLayer');
+  if (!layer) return;
+  const n = count || 10;
+  const glyphs = ['🪙','💰','✨','🟡'];
+  for (let i = 0; i < n; i++) {
+    const coin = document.createElement('span');
+    coin.className = 'coin-spark';
+    coin.textContent = glyphs[Math.floor(Math.random() * glyphs.length)];
+    coin.style.left = `${originX}px`;
+    coin.style.top = `${originY}px`;
+    // Random horizontal drift and fall distance for a natural scatter.
+    const dx = (Math.random() - 0.5) * 180;
+    const dy = 140 + Math.random() * 120;
+    coin.style.setProperty('--cdx', `${dx.toFixed(1)}px`);
+    coin.style.setProperty('--cdy', `${dy.toFixed(1)}px`);
+    coin.style.animationDelay = `${(Math.random() * 0.25).toFixed(2)}s`;
+    coin.style.animationDuration = `${(1.0 + Math.random() * 0.5).toFixed(2)}s`;
+    coin.style.fontSize = `${20 + Math.round(Math.random() * 8)}px`;
+    layer.appendChild(coin);
+    setTimeout(() => { if (coin.parentNode) coin.parentNode.removeChild(coin); }, 1700);
+  }
+}
+
+function buyShopItem(id, evt) {
   const item = state.shopItems.find(i => i.id === id);
   if (!item) return;
   if (state.stars < item.price) {
@@ -3925,11 +4012,22 @@ function buyShopItem(id) {
     toast(T(`「${item.name}」今天已经兑换过啦`, `“${item.name}” already redeemed today`), '✋');
     return;
   }
+  // Figure out where to drop the coins FROM — prefer the clicked button,
+  // fall back to the matching shop-item card, then top-center of viewport.
+  let ox = window.innerWidth / 2;
+  let oy = Math.min(160, window.innerHeight * 0.3);
+  const btn = (evt && evt.currentTarget) || document.querySelector(`.shop-buy-btn[data-shop-id="${id}"]`);
+  if (btn && btn.getBoundingClientRect) {
+    const r = btn.getBoundingClientRect();
+    ox = r.left + r.width / 2;
+    oy = r.top + r.height / 2;
+  }
   state.stars -= item.price;
   state.shopPurchases[t][id] = used + 1;
   save();
   renderAll();
   toast(T(`获得：${item.icon} ${item.name}！请无罪恶感地享受 🌷`, `Got: ${item.icon} ${item.name}! Enjoy guilt-free 🌷`), '🎁');
+  try { playCoinDrop(ox, oy, 12); } catch (e) {}
 }
 
 /* Return a YYYY-MM-DD key for "yesterday" using local time — matches the
@@ -4503,12 +4601,65 @@ function renderPet() {
 
 function renderDims() {
   const en = getLang()==='en';
+  // Hand-drawn SVG icons matched to the site's warm / healing palette:
+  // sky (career ✈), peach (charm ♡), butter (wealth 🍯), lilac (wisdom 📖),
+  // moss (health 🌱). All icons share a 24x24 viewBox and render at 28x28
+  // inside the 44x44 colored dim-icon circle.
+  const ICON_CAREER = `
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 11 L21 4 L15 19 L11 14 L3 11 Z"
+            fill="#a9cbd8" stroke="#7ba3b5" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M21 4 L11 14 L15 19 Z" fill="#7ba3b5" fill-opacity="0.35"/>
+      <circle cx="7" cy="10" r="0.9" fill="white" opacity="0.85"/>
+    </svg>`;
+  const ICON_CHARM = `
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 20.5 C 3 14.5, 3 6, 8 6 C 10.2 6, 11.6 7.6, 12 8.6 C 12.4 7.6, 13.8 6, 16 6 C 21 6, 21 14.5, 12 20.5 Z"
+            fill="#f2a78d" stroke="#d88671" stroke-width="1.4" stroke-linejoin="round"/>
+      <ellipse cx="8.4" cy="10" rx="1.3" ry="1.6" fill="white" opacity="0.75"/>
+      <path d="M19 3.2 L19.7 5 L21.3 5.8 L19.7 6.5 L19 8.3 L18.3 6.5 L16.7 5.8 L18.3 5 Z"
+            fill="#f3d388" stroke="#d88671" stroke-width="0.6" stroke-linejoin="round"/>
+    </svg>`;
+  const ICON_WEALTH = `
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 10 L6 19 Q 6 21, 8 21 L16 21 Q 18 21, 18 19 L18 10 Z"
+            fill="#f3d388" stroke="#d88671" stroke-width="1.4" stroke-linejoin="round"/>
+      <rect x="5" y="6" width="14" height="4" rx="1.5"
+            fill="#f2a78d" stroke="#d88671" stroke-width="1.4"/>
+      <path d="M12 17.5 C 9.8 16, 9.8 13.5, 11.2 13.5 C 11.7 13.5, 12 13.9, 12 14.2 C 12 13.9, 12.3 13.5, 12.8 13.5 C 14.2 13.5, 14.2 16, 12 17.5 Z"
+            fill="#d88671"/>
+      <ellipse cx="8" cy="13.5" rx="0.8" ry="2.2" fill="white" opacity="0.55"/>
+    </svg>`;
+  const ICON_WISDOM = `
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 6.5 Q 7.5 5, 12 7 L12 19.5 Q 7.5 17.5, 3 18.5 Z"
+            fill="#faf3e7" stroke="#9a89b2" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M21 6.5 Q 16.5 5, 12 7 L12 19.5 Q 16.5 17.5, 21 18.5 Z"
+            fill="#faf3e7" stroke="#9a89b2" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M12 7 L12 19.5" stroke="#9a89b2" stroke-width="1.1" fill="none"/>
+      <line x1="5.2" y1="10" x2="10" y2="10.7" stroke="#c4b5d9" stroke-width="1" stroke-linecap="round"/>
+      <line x1="5.2" y1="13" x2="10" y2="13.7" stroke="#c4b5d9" stroke-width="1" stroke-linecap="round"/>
+      <line x1="14" y1="10.7" x2="18.8" y2="10" stroke="#c4b5d9" stroke-width="1" stroke-linecap="round"/>
+      <line x1="14" y1="13.7" x2="18.8" y2="13" stroke="#c4b5d9" stroke-width="1" stroke-linecap="round"/>
+      <path d="M15 5 L15 11.5 L16.5 10 L18 11.5 L18 5 Z"
+            fill="#f2a78d" stroke="#d88671" stroke-width="0.9" stroke-linejoin="round"/>
+    </svg>`;
+  const ICON_HEALTH = `
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="12" cy="20" rx="7" ry="1.4" fill="#d88671" opacity="0.3"/>
+      <path d="M12 20 Q 12 14, 12 8.5" stroke="#4a6b47" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <path d="M12 12.5 Q 7 11, 5.5 6.5 Q 10 6.5, 12 11.5 Z"
+            fill="#7a9b6e" stroke="#4a6b47" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M12 10 Q 17 8, 18.5 3.8 Q 14 3.8, 12 8.8 Z"
+            fill="#7a9b6e" stroke="#4a6b47" stroke-width="1.2" stroke-linejoin="round"/>
+      <circle cx="8.3" cy="8.5" r="0.7" fill="white" opacity="0.75"/>
+    </svg>`;
   const dims = [
-    { key: 'career', name: en?'Career':'事业', icon: '💼', cls: 'dim-career' },
-    { key: 'charm',  name: en?'Charm':'魅力',  icon: '💖', cls: 'dim-charm' },
-    { key: 'wealth', name: en?'Wealth':'财富', icon: '💰', cls: 'dim-wealth' },
-    { key: 'wisdom', name: en?'Wisdom':'智慧', icon: '📚', cls: 'dim-wisdom' },
-    { key: 'health', name: en?'Health':'健康', icon: '🌿', cls: 'dim-health' },
+    { key: 'career', name: en?'Career':'事业', icon: ICON_CAREER, cls: 'dim-career' },
+    { key: 'charm',  name: en?'Charm':'魅力',  icon: ICON_CHARM,  cls: 'dim-charm' },
+    { key: 'wealth', name: en?'Wealth':'财富', icon: ICON_WEALTH, cls: 'dim-wealth' },
+    { key: 'wisdom', name: en?'Wisdom':'智慧', icon: ICON_WISDOM, cls: 'dim-wisdom' },
+    { key: 'health', name: en?'Health':'健康', icon: ICON_HEALTH, cls: 'dim-health' },
   ];
   const html = dims.map(d => `
     <div class="dim-card">
@@ -4684,7 +4835,7 @@ function renderTasks() {
       `
       : '';
     return `
-      <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''} ${overdueClass}" data-task-id="${task.id}">
+      <div class="task ${done ? 'done' : ''} ${started ? 'started' : ''} ${overdueClass}" data-task-id="${task.id}" onclick="editTaskById('${task.id}')" title="${T('点击修改任务','Click to edit task')}">
         <div class="task-body">
           <div class="task-name">${escapeHtml(task.name)}</div>
           <div class="task-meta">${metaTags}</div>
@@ -4919,7 +5070,7 @@ function renderShop() {
         <div class="shop-item-icon">${item.icon}</div>
         <div class="shop-item-name">${escapeHtml(item.name)}</div>
         <div class="shop-item-desc">${escapeHtml(item.desc || '')}</div>
-        <button class="shop-buy-btn" ${disabled ? 'disabled' : ''} onclick="buyShopItem('${item.id}')">
+        <button class="shop-buy-btn" ${disabled ? 'disabled' : ''} data-shop-id="${item.id}" onclick="buyShopItem('${item.id}', event)">
           ${limitReached ? T('今日已兑换','Redeemed today') : `✨ ${item.price} ${T('颗星','stars')}`}
         </button>
         ${item.limit ? `<div style="font-size:11px; color: var(--ink-soft); text-align: center; margin-top: 6px;">${T('今日','Today')} ${used}/${item.limit}</div>` : ''}
@@ -4943,6 +5094,18 @@ function filterCards(f) { cardFilter = f; renderCards(); }
 function renderCards() {
   let pool = CARD_POOL;
   if (cardFilter !== 'all') pool = pool.filter(c => c.dim === cardFilter);
+  // Pin unlocked cards to the top so already-collected plants are easy to
+  // revisit. Within each group (unlocked / locked) keep the original order
+  // defined in CARD_POOL by using a stable sort with the original index
+  // as tiebreaker.
+  pool = pool.map((c, i) => ({ c, i }))
+    .sort((a, b) => {
+      const aLocked = (state.cards[a.c.id] || 0) === 0 ? 1 : 0;
+      const bLocked = (state.cards[b.c.id] || 0) === 0 ? 1 : 0;
+      if (aLocked !== bLocked) return aLocked - bLocked;
+      return a.i - b.i;
+    })
+    .map(x => x.c);
   const html = pool.map(c => {
     const count = state.cards[c.id] || 0;
     const locked = count === 0;
@@ -5322,6 +5485,15 @@ function openTaskModal(task = null) {
   document.getElementById('taskModal').classList.add('active');
   setTimeout(() => document.getElementById('taskNameInput').focus(), 100);
 }
+/* Open the edit modal for a task given its id. Used by the click handler
+   on each task row, so users can tap a task to re-edit its name, type,
+   difficulty, ease, or due date. Inner action buttons call
+   event.stopPropagation() so they keep their own behavior. */
+function editTaskById(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  openTaskModal(task);
+}
 function closeTaskModal() {
   document.getElementById('taskModal').classList.remove('active');
   editingTaskId = null;
@@ -5352,12 +5524,45 @@ function saveTask() {
   toast(editingTaskId ? T('更新啦~','Updated ~') : T('新任务添加成功！','New task added!'), '✨');
 }
 
+/* Curated icon set for the wish-shop reward picker. Grouped roughly by
+   theme — screen/creative, food & drink, self-care, shopping/gifts,
+   outdoors — five per row. Keeping these fixed means users don't have
+   to hunt for an emoji on their keyboard. */
+const SHOP_ICON_OPTIONS = [
+  '🎬','🎵','📺','🎮','📱',
+  '📖','🎧','🎤','🎹','🎨',
+  '🍰','🍦','🍫','🍪','🍩',
+  '🍕','🍜','🍣','☕','🍵',
+  '🍷','🍺','🍸','🥤','🧋',
+  '🛁','💆','💅','🧖','😴',
+  '🌸','🌷','🌿','🕯','🧘',
+  '🛍','👗','💄','📚','🎁',
+  '🎀','💝','💎','🧸','✨',
+  '🏖','🌅','🚶','🧺','🎉',
+];
+function renderShopIconPicker(selected) {
+  const host = document.getElementById('shopIconPicker');
+  if (!host) return;
+  const sel = selected || document.getElementById('shopIconInput').value || '🎁';
+  host.innerHTML = SHOP_ICON_OPTIONS.map(ic =>
+    `<div class="shop-icon-opt ${ic === sel ? 'selected' : ''}" data-icon="${ic}" onclick="selectShopIcon('${ic}')">${ic}</div>`
+  ).join('');
+}
+function selectShopIcon(ic) {
+  document.getElementById('shopIconInput').value = ic;
+  // Visually highlight the selected tile without re-rendering the whole grid.
+  document.querySelectorAll('#shopIconPicker .shop-icon-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.icon === ic);
+  });
+}
+
 function openShopEditModal() {
   document.getElementById('shopNameInput').value = '';
-  document.getElementById('shopIconInput').value = '';
+  document.getElementById('shopIconInput').value = '🎁';
   document.getElementById('shopPriceInput').value = 50;
   document.getElementById('shopDescInput').value = '';
   document.getElementById('shopLimitInput').value = 1;
+  renderShopIconPicker('🎁');
   document.getElementById('shopModal').classList.add('active');
   setTimeout(() => document.getElementById('shopNameInput').focus(), 100);
 }
@@ -6140,6 +6345,8 @@ function setSyncStatus(status) {
 // ── AUTH STATE ──
 onAuthStateChanged(auth, async user => {
   if (user) {
+    // Any pending explicit-signout intent is obsolete now that a user is signed in.
+    window._intentionalSignOut = false;
     // If we're signing in as a DIFFERENT uid than the one cached locally,
     // wipe local state so the new user starts clean instead of inheriting
     // the previous user's data before Firestore finishes loading.
@@ -6166,22 +6373,28 @@ onAuthStateChanged(auth, async user => {
   } else {
     currentUser = null;
     window._firebaseReady = false;
-    // Clear local cache on logout so the offline-fallback path can't resurrect
-    // a previous user's data if the next user signs in under a different uid.
-    try { localStorage.removeItem('habit_garden_v1'); } catch(e) {}
-    try { localStorage.removeItem('hg_last_uid'); } catch(e) {}
-    if (typeof window._resetStateToDefaults === 'function') window._resetStateToDefaults();
     window._cloudLoaded = false;
-    // Keep the app VISIBLE — sign-in is now optional. Hide the signout button
-    // and boot/refresh a clean offline session.
+    // This branch fires in TWO scenarios:
+    //   (1) Anonymous boot — the user has never logged in, or is simply using
+    //       the app offline. In this case we MUST preserve their localStorage
+    //       data so refresh doesn't wipe their tasks / pet / coins.
+    //   (2) Explicit sign-out — the user clicked "sign out". The signOut()
+    //       function sets window._intentionalSignOut = true and has already
+    //       cleared local state before calling fbSignOut. In this case we
+    //       complete the reset (clear hg_last_uid, re-seed defaults, re-render).
+    if (window._intentionalSignOut) {
+      try { localStorage.removeItem('hg_last_uid'); } catch(e) {}
+      if (typeof window._resetStateToDefaults === 'function') window._resetStateToDefaults();
+      if (typeof window.seedDefaults === 'function') window.seedDefaults();
+      if (typeof window.renderAll === 'function') window.renderAll();
+      window._intentionalSignOut = false;
+    }
+    // Keep the app VISIBLE — sign-in is now optional. Hide the signout button.
     document.getElementById('appScreen').style.display = 'block';
     const so = document.getElementById('headerSignOutBtn'); if (so) so.style.display = 'none';
     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
     const el = document.getElementById('userEmail');
     if (el) el.textContent = (typeof getLang === 'function' && getLang()==='en') ? 'Guest' : '未登录';
-    // Re-seed defaults and render (e.g. after sign-out we want a clean local state).
-    if (typeof window.seedDefaults === 'function') window.seedDefaults();
-    if (typeof window.renderAll === 'function') window.renderAll();
   }
 });
 
@@ -6226,6 +6439,10 @@ window.signUpEmail = async () => {
 };
 window.signOut = async () => {
   if (!confirm('确定退出登录？')) return;
+  // Flag an explicit sign-out so the onAuthStateChanged(null) handler knows
+  // to wipe local state (as opposed to a routine anonymous boot, where we
+  // want to PRESERVE local data so refresh keeps the user's progress).
+  window._intentionalSignOut = true;
   // Clear local cache BEFORE signing out so the next user can't inherit this
   // user's state from localStorage. Also reset the in-memory state to defaults
   // so the auth screen can't render stale data.
