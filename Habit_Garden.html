@@ -1558,6 +1558,14 @@
         </select>
       </div>
     </div>
+    <div class="form-group">
+      <label data-i18n="task_ease">现在看起来有多容易开始？</label>
+      <select id="taskEaseInput">
+        <option value="easy" data-i18n="ease_easy">很容易开始</option>
+        <option value="medium" selected data-i18n="ease_medium">一般</option>
+        <option value="hard" data-i18n="ease_hard">有点难开始</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" data-i18n="cancel" onclick="closeTaskModal()">取消</button>
       <button class="btn btn-primary" data-i18n="save" id="saveTaskBtn" onclick="saveTask()">保存</button>
@@ -1846,12 +1854,12 @@ function handleDayRoll() {
 function seedDefaults() {
   if (state.tasks.length === 0) {
     state.tasks = [
-      { id: uid(), name: '读书 30 分钟', dim: 'wisdom', difficulty: 2, type: 'daily', createdAt: Date.now() },
-      { id: uid(), name: '练琴 30 分钟', dim: 'charm', difficulty: 2, type: 'daily', createdAt: Date.now() },
-      { id: uid(), name: '写日记', dim: 'wisdom', difficulty: 1, type: 'daily', createdAt: Date.now() },
-      { id: uid(), name: '早睡（23点前）', dim: 'health', difficulty: 2, type: 'daily', createdAt: Date.now() },
-      { id: uid(), name: '按时吃药/喝水', dim: 'health', difficulty: 1, type: 'daily', createdAt: Date.now() },
-      { id: uid(), name: '写一篇文章', dim: 'career', difficulty: 3, type: 'once', createdAt: Date.now() },
+      { id: uid(), name: '读书 30 分钟', dim: 'wisdom', difficulty: 2, type: 'daily', easyToStart: 'medium', createdAt: Date.now() },
+      { id: uid(), name: '练琴 30 分钟', dim: 'charm', difficulty: 2, type: 'daily', easyToStart: 'medium', createdAt: Date.now() },
+      { id: uid(), name: '写日记', dim: 'wisdom', difficulty: 1, type: 'daily', easyToStart: 'easy', createdAt: Date.now() },
+      { id: uid(), name: '早睡（23点前）', dim: 'health', difficulty: 2, type: 'daily', easyToStart: 'medium', createdAt: Date.now() },
+      { id: uid(), name: '按时吃药/喝水', dim: 'health', difficulty: 1, type: 'daily', easyToStart: 'easy', createdAt: Date.now() },
+      { id: uid(), name: '写一篇文章', dim: 'career', difficulty: 3, type: 'once', easyToStart: 'hard', createdAt: Date.now() },
     ];
   }
   if (state.shopItems.length === 0) {
@@ -4245,6 +4253,12 @@ function ensureTaskMetadata() {
   if (!Array.isArray(state.tasks)) state.tasks = [];
   if (!Array.isArray(state.pinnedTaskIds)) state.pinnedTaskIds = [];
   if (!state.dailyMustDoByDate || typeof state.dailyMustDoByDate !== 'object') state.dailyMustDoByDate = {};
+  // Normalize easyToStart on every task so older saved tasks rank alongside new ones.
+  state.tasks.forEach(task => {
+    if (task.easyToStart !== 'easy' && task.easyToStart !== 'medium' && task.easyToStart !== 'hard') {
+      task.easyToStart = 'medium';
+    }
+  });
   const taskIds = new Set(state.tasks.map(task => task.id));
   state.pinnedTaskIds = state.pinnedTaskIds.filter(id => taskIds.has(id));
   Object.keys(state.dailyMustDoByDate).forEach(dateKey => {
@@ -4384,25 +4398,35 @@ function renderTasks() {
     `;
   };
 
-  /* Rank helper for the home list:
-       pinned (in user order) → must-do today → easy-to-start → rest.
-     Done items sink to the bottom. */
-  const homeRank = (task) => {
-    const pinIdx = pinnedTaskIds.indexOf(task.id);
-    if (pinIdx >= 0) return [0, pinIdx];
-    if (mustDoTodayIds.includes(task.id)) return [1, 0];
-    if (task.difficulty === 1) return [2, 0];
-    return [3, 0];
+  /* Bucket ranking (matches v2): easy+must → easy → medium+must → medium → hard+must → hard.
+     Pinned tasks take precedence over buckets, in the user's pin order. */
+  const easeBucket = (task) => {
+    const ease = (task.easyToStart === 'easy' || task.easyToStart === 'hard') ? task.easyToStart : 'medium';
+    const must = mustDoTodayIds.includes(task.id);
+    if (ease === 'easy'   && must) return 0;
+    if (ease === 'easy')          return 1;
+    if (ease === 'medium' && must) return 2;
+    if (ease === 'medium')         return 3;
+    if (ease === 'hard'   && must) return 4;
+    return 5;
   };
-  const sortForHome = (arr) => arr.slice().sort((a, b) => {
-    const aDone = isTaskDone(a) ? 1 : 0;
-    const bDone = isTaskDone(b) ? 1 : 0;
-    if (aDone !== bDone) return aDone - bDone;
-    const [ar, ai] = homeRank(a);
-    const [br, bi] = homeRank(b);
-    if (ar !== br) return ar - br;
-    return ai - bi;
-  });
+  const sortForHome = (arr) => {
+    const indexed = arr.map((task, idx) => ({ task, idx }));
+    return indexed.slice().sort((a, b) => {
+      const aDone = isTaskDone(a.task) ? 1 : 0;
+      const bDone = isTaskDone(b.task) ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      const aPin = pinnedTaskIds.indexOf(a.task.id);
+      const bPin = pinnedTaskIds.indexOf(b.task.id);
+      const aPinR = aPin < 0 ? Number.POSITIVE_INFINITY : aPin;
+      const bPinR = bPin < 0 ? Number.POSITIVE_INFINITY : bPin;
+      if (aPinR !== bPinR) return aPinR - bPinR;
+      const aB = easeBucket(a.task);
+      const bB = easeBucket(b.task);
+      if (aB !== bB) return aB - bB;
+      return a.idx - b.idx;
+    }).map(({ task }) => task);
+  };
 
   // Simple sort for the task page (done sink to bottom, keep user order otherwise).
   const sortByDone = (arr) => arr.slice().sort((a, b) => {
@@ -4419,9 +4443,20 @@ function renderTasks() {
     return false;
   });
   const rankedHomeIncomplete = sortForHome(homeCandidates).filter(task => !isTaskDone(task));
-  /* Default view shows only the top 3. If the user has pinned or marked
-     must-do items, they bubble up automatically through homeRank. */
-  const homeTopThree = rankedHomeIncomplete.slice(0, 3);
+  /* Default view shows only the top 3. Pinned + easy-to-start tasks bubble
+     up naturally; if the user has marked must-do items but none of them
+     land in the first three, swap the last slot with the first must-do
+     task so today's commitments are always visible. */
+  const pickHomeTopThree = () => {
+    if (rankedHomeIncomplete.length <= 3) return rankedHomeIncomplete;
+    const topThree = rankedHomeIncomplete.slice(0, 3);
+    const mustSet = new Set(mustDoTodayIds);
+    if (topThree.some(task => mustSet.has(task.id))) return topThree;
+    const firstMust = rankedHomeIncomplete.find(task => mustSet.has(task.id));
+    if (!firstMust) return topThree;
+    return [...topThree.slice(0, 2), firstMust];
+  };
+  const homeTopThree = pickHomeTopThree();
   const homeVisible = _homeTaskListExpanded ? rankedHomeIncomplete : homeTopThree;
   const completedHome = sortForHome(homeCandidates.filter(task => isTaskDone(task)));
 
@@ -4442,8 +4477,8 @@ function renderTasks() {
   document.getElementById('homeTaskList').innerHTML = homeHtml;
 
   const sortHint = mustDoTodayIds.length
-    ? T('置顶 / 今天必做 已经排在最前面。','Pinned & must-do items are surfaced first.')
-    : T('默认只显示最上面 3 个，点下方可展开。','Only the top 3 show by default — tap below to expand.');
+    ? T('按 置顶 → 容易开始 排序，今天必做会被拉进前三。','Sorted by pinned → easy-to-start; must-do items are surfaced into the top 3.')
+    : T('按 置顶 → 容易开始 排序，默认只显示前 3 个。','Sorted by pinned → easy-to-start; only the top 3 show by default.');
   document.getElementById('homeSortHint').textContent = sortHint;
 
   const expandLabel = _homeTaskListExpanded
@@ -4902,6 +4937,7 @@ function openTaskModal(task = null) {
   document.getElementById('taskDimInput').value = task ? task.dim : 'wisdom';
   document.getElementById('taskDifficultyInput').value = task ? task.difficulty : 2;
   document.getElementById('taskTypeInput').value = task ? task.type : 'daily';
+  document.getElementById('taskEaseInput').value = (task && task.easyToStart) ? task.easyToStart : 'medium';
   document.getElementById('taskModal').classList.add('active');
   setTimeout(() => document.getElementById('taskNameInput').focus(), 100);
 }
@@ -4912,11 +4948,13 @@ function closeTaskModal() {
 function saveTask() {
   const name = document.getElementById('taskNameInput').value.trim();
   if (!name) { toast(T('给任务起个名字吧~','Give this task a name ~'), '✏'); return; }
+  const easeVal = document.getElementById('taskEaseInput').value;
   const payload = {
     name,
     dim: document.getElementById('taskDimInput').value,
     difficulty: parseInt(document.getElementById('taskDifficultyInput').value),
     type: document.getElementById('taskTypeInput').value,
+    easyToStart: (easeVal === 'easy' || easeVal === 'hard') ? easeVal : 'medium',
   };
   if (editingTaskId) {
     const t = state.tasks.find(t => t.id === editingTaskId);
@@ -5066,6 +5104,10 @@ const I18N_MAP = {
   daily_short: { zh: '每日', en: 'Daily' },
   weekly_short: { zh: '每周', en: 'Weekly' },
   once_short: { zh: '一次性', en: 'One-time' },
+  task_ease: { zh: '现在看起来有多容易开始？', en: 'How easy does it look to start?' },
+  ease_easy: { zh: '很容易开始', en: 'Very easy to start' },
+  ease_medium: { zh: '一般', en: 'Medium' },
+  ease_hard: { zh: '有点难开始', en: 'A bit hard to start' },
   cancel: { zh: '取消', en: 'Cancel' },
   save: { zh: '保存', en: 'Save' },
   add_reward_h: { zh: '添加我想要的奖励', en: 'Add a reward I want' },
