@@ -516,6 +516,16 @@
   .task-list::-webkit-scrollbar { width: 6px; }
   .task-list::-webkit-scrollbar-thumb { background: var(--cream-2); border-radius: 3px; }
 
+  /* Journal entries on the 记录 tab reuse the task-list scroll pattern so
+     the page doesn't grow unbounded once many notes accumulate. */
+  #journalList {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  #journalList::-webkit-scrollbar { width: 6px; }
+  #journalList::-webkit-scrollbar-thumb { background: var(--cream-2); border-radius: 3px; }
+
   .task {
     background: var(--cream);
     border-radius: 16px;
