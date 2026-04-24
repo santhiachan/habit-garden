@@ -1107,6 +1107,45 @@
     margin-top: 4px;
   }
 
+  /* Quick-set preset chips beside the focus-duration number input. */
+  .focus-preset {
+    background: var(--cream-2);
+    color: var(--ink);
+    border: 1.5px solid var(--cream-2);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .focus-preset:hover { background: var(--moss); color: #fff; border-color: var(--moss); }
+  .focus-preset.active { background: var(--moss); color: #fff; border-color: var(--moss); }
+
+  /* Pink-flower celebration released at the end of a focus session (either
+     the timer ran out or the user tapped "完成 ✓" early). Uses the same
+     fixed-overlay idea as firework-layer so the petals can fall from the
+     timer card down past any layout. */
+  .flower-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+    overflow: hidden;
+  }
+  .flower-petal {
+    position: absolute;
+    font-size: 22px;
+    opacity: 0;
+    animation: flowerFall 2.2s cubic-bezier(.3, .6, .5, 1) forwards;
+    filter: drop-shadow(0 2px 3px rgba(216, 134, 113, 0.35));
+  }
+  @keyframes flowerFall {
+    0%   { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.6); }
+    12%  { opacity: 1; transform: translate(calc(var(--fdx, 0px) * 0.2), -20px) rotate(60deg) scale(1); }
+    100% { opacity: 0; transform: translate(var(--fdx, 0px), var(--fdy, 260px)) rotate(var(--frot, 360deg)) scale(0.9); }
+  }
+
   .insight-card {
     background: linear-gradient(145deg, #fff 0%, #faf3e7 100%);
     border-radius: 20px;
@@ -1159,6 +1198,23 @@
   }
   .power-label { font-size: 14px; color: var(--ink-soft); }
   .power-value { font-size: 24px; font-weight: 700; color: var(--peach-deep); }
+
+  /* Inline five-dimensions block living inside the plant card, right under
+     the power display. Scaled-down vs. the old standalone grid. */
+  .dims-inline { margin-top: 14px; }
+  .dims-inline-title {
+    font-family: 'Caveat', cursive;
+    font-size: 16px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .dims-inline-row { margin-top: 0; gap: 6px; }
+  .dims-inline-row .dim-card { padding: 10px 6px; border-radius: 14px; }
+  .dims-inline-row .dim-icon { width: 34px; height: 34px; margin-bottom: 4px; }
+  .dims-inline-row .dim-icon svg { width: 22px; height: 22px; }
+  .dims-inline-row .dim-name { font-size: 13px; }
+  .dims-inline-row .dim-value { font-size: 15px; }
 
   .empty {
     padding: 40px 20px;
@@ -1284,7 +1340,6 @@
         <span id="userEmail"></span>
         <span style="opacity:.5; font-size:12px;">✎</span>
       </div>
-      <button class="signout-btn" id="headerSignOutBtn" onclick="signOut()" data-i18n="signout" style="display:none;">退出登录</button>
       <button class="settings-btn" onclick="openSettingsModal()" title="设置 / Settings" aria-label="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"></circle>
@@ -1297,9 +1352,9 @@
   <nav class="tabs">
     <button class="tab active" data-view="home" data-i18n="tab_home">🏡 主页</button>
     <button class="tab" data-view="tasks" data-i18n="tab_tasks">📋 任务</button>
+    <button class="tab" data-view="focus" data-i18n="tab_focus">⏱ 专注</button>
     <button class="tab" data-view="shop" data-i18n="tab_shop">🎁 许愿店</button>
     <button class="tab" data-view="cards" data-i18n="tab_cards">🃏 卡册</button>
-    <button class="tab" data-view="focus" data-i18n="tab_focus">⏱ 专注</button>
     <button class="tab" data-view="insights" data-i18n="tab_log">🌙 记录</button>
   </nav>
 
@@ -1360,6 +1415,11 @@
           <span class="power-label" data-i18n="power">综合成长值</span>
           <span class="power-value" id="powerValue">0</span>
         </div>
+
+        <div class="dims-inline">
+          <div class="dims-inline-title" data-i18n="five_dims">五维能力</div>
+          <div class="stats-row dims-inline-row" id="dimsRow"></div>
+        </div>
       </div>
 
       <div class="panel">
@@ -1373,22 +1433,6 @@
         <div id="homeTaskActions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;"></div>
       </div>
 
-    </div>
-
-    <div style="margin-top: 28px;">
-      <div class="panel-title" data-i18n="five_dims" style="padding: 0 4px; margin-bottom: 12px;">五维能力</div>
-      <div class="stats-row" id="dimsRow"></div>
-    </div>
-
-    <div class="sleep-panel">
-      <div class="sleep-title" data-i18n="sleep_title">昨晚几点睡？</div>
-      <div class="sleep-options">
-        <button class="sleep-btn" data-sleep="before23" data-i18n="sleep_b23" onclick="logSleep('before23')">23:00前</button>
-        <button class="sleep-btn" data-sleep="before24" data-i18n="sleep_b24" onclick="logSleep('before24')">23-24点</button>
-        <button class="sleep-btn" data-sleep="before1" data-i18n="sleep_b1" onclick="logSleep('before1')">凌晨1点前</button>
-        <button class="sleep-btn" data-sleep="late" data-i18n="sleep_late" onclick="logSleep('late')">更晚了</button>
-      </div>
-      <div style="margin-top: 12px; font-size: 13px; opacity: 0.8;" id="sleepStatus"></div>
     </div>
   </section>
 
@@ -1470,25 +1514,28 @@
       </div>
 
       <div class="form-group" style="max-width: 400px; margin: 0 auto 20px;">
-        <label data-i18n="focus_duration">时长</label>
-        <select id="focusDuration">
-          <option value="5" data-i18n="f_5">5 分钟（仅启动奖励）</option>
-          <option value="15" data-i18n="f_15">15 分钟</option>
-          <option value="25" selected="" data-i18n="f_25">25 分钟 · 番茄</option>
-          <option value="45" data-i18n="f_45">45 分钟 · 深度</option>
-          <option value="60" data-i18n="f_60">60 分钟 · 沉浸</option>
-        </select>
+        <label data-i18n="focus_duration">时长（分钟）</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="focusDuration" type="number" min="1" max="240" step="1" value="25" style="flex:0 0 110px; text-align:center;">
+          <div class="focus-preset-row" style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="focus-preset" onclick="setFocusDuration(5)">5</button>
+            <button type="button" class="focus-preset" onclick="setFocusDuration(15)">15</button>
+            <button type="button" class="focus-preset" onclick="setFocusDuration(25)">25</button>
+            <button type="button" class="focus-preset" onclick="setFocusDuration(45)">45</button>
+            <button type="button" class="focus-preset" onclick="setFocusDuration(60)">60</button>
+          </div>
+        </div>
       </div>
 
       <div style="display: flex; gap: 10px; max-width: 400px; margin: 0 auto;">
         <button class="btn btn-primary" data-i18n="f_start" id="focusStartBtn" onclick="startFocus()">开始 ▸</button>
         <button class="btn btn-ghost" data-i18n="f_give_up" id="focusStopBtn" onclick="stopFocus(false)" style="display:none;">放弃</button>
-        <button class="btn btn-warm" data-i18n="f_done" id="focusDoneBtn" onclick="stopFocus(true)" style="display:none;">完成 ✓</button>
+        <button class="btn btn-warm" data-i18n="f_done" id="focusDoneBtn" onclick="finishFocusEarly()" style="display:none;">完成 ✓</button>
       </div>
 
       <div class="insight-card" style="margin-top: 20px; text-align: left;">
         <span class="quote-mark">"</span>
-        <span data-i18n="focus_blurb">启动是最难的。所以只要你开始了 <b>5 分钟</b>，就能拿到一半积分——即使中途放弃也算。完成全程再拿另一半。</span>
+        <span data-i18n="focus_blurb">启动是最难的。坐下 <b>5 分钟</b> 就有保底奖励，随时点「完成 ✓」即可拿到全部积分。</span>
         <span class="pet-name-inline"></span><span data-i18n="focus_blurb2">最喜欢看你勇敢地坐下来那一刻。</span>
       </div>
     </div>
@@ -1509,6 +1556,17 @@
         <input id="journalTagInput" type="text" data-i18n-ph="journal_tag_ph" placeholder="添加标签（用逗号或空格分隔，可选）">
       </div>
       <button class="btn btn-primary" data-i18n="save_journal" onclick="saveJournal()" style="max-width: 200px;">记下来 ✎</button>
+    </div>
+
+    <div class="sleep-panel">
+      <div class="sleep-title" data-i18n="sleep_title">昨晚几点睡？</div>
+      <div class="sleep-options">
+        <button class="sleep-btn" data-sleep="before23" data-i18n="sleep_b23" onclick="logSleep('before23')">23:00前</button>
+        <button class="sleep-btn" data-sleep="before24" data-i18n="sleep_b24" onclick="logSleep('before24')">23-24点</button>
+        <button class="sleep-btn" data-sleep="before1" data-i18n="sleep_b1" onclick="logSleep('before1')">凌晨1点前</button>
+        <button class="sleep-btn" data-sleep="late" data-i18n="sleep_late" onclick="logSleep('late')">更晚了</button>
+      </div>
+      <div style="margin-top: 12px; font-size: 13px; opacity: 0.8;" id="sleepStatus"></div>
     </div>
 
     <div class="panel" style="margin-top: 20px;" id="moodPanel">
@@ -1553,6 +1611,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <div class="firework-layer" id="fireworkLayer"></div>
+<div class="flower-layer" id="flowerLayer"></div>
 
 <!-- Species picker modal: appears when user clicks "我要自己选择植物" or when re-adopting -->
 <div class="modal-overlay" id="speciesPickerModal">
@@ -1658,6 +1717,7 @@
           <input class="auth-input" type="password" id="passwordInput" data-i18n-ph="password_ph" placeholder="密码">
           <button class="auth-btn auth-primary" onclick="signInEmail()" data-i18n="signin_btn">登录</button>
           <div class="auth-switch" style="text-align:center; font-size:13px; color:var(--ink-soft);"><span data-i18n="no_account">还没有账号？</span><a onclick="showRegister()" style="color:var(--moss); cursor:pointer; font-weight:600; margin-left:4px;" data-i18n="register_btn">注册</a></div>
+          <div class="auth-switch" style="text-align:center; font-size:13px; color:var(--ink-soft); margin-top:4px;"><a onclick="resetPassword()" style="color:var(--peach-deep); cursor:pointer; font-weight:600;" data-i18n="forgot_pw">忘记密码？</a></div>
         </div>
         <div id="registerForm" style="display:none;">
           <input class="auth-input" type="email" id="regEmailInput" data-i18n-ph="email_ph" placeholder="邮箱地址">
@@ -5724,16 +5784,11 @@ const I18N_MAP = {
   timer_idle: { zh: '准备一段温柔的专注', en: 'Ready for a gentle focus session' },
   focus_what: { zh: '这次想专注做什么？', en: 'What do you want to focus on?' },
   focus_what_ph: { zh: '例如：读《悉达多》第 3 章', en: 'e.g. Read chapter 3 of Siddhartha' },
-  focus_duration: { zh: '时长', en: 'Duration' },
-  f_5: { zh: '5 分钟（仅启动奖励）', en: '5 min (start-up reward only)' },
-  f_15: { zh: '15 分钟', en: '15 min' },
-  f_25: { zh: '25 分钟 · 番茄', en: '25 min \u00b7 Pomodoro' },
-  f_45: { zh: '45 分钟 · 深度', en: '45 min \u00b7 Deep' },
-  f_60: { zh: '60 分钟 · 沉浸', en: '60 min \u00b7 Immersive' },
+  focus_duration: { zh: '时长（分钟）', en: 'Duration (min)' },
   f_start: { zh: '开始 ▸', en: 'Start ▸' },
   f_give_up: { zh: '放弃', en: 'Give up' },
   f_done: { zh: '完成 ✓', en: 'Done ✓' },
-  focus_blurb: { zh: '启动是最难的。所以只要你开始了 <b>5 分钟</b>，就能拿到一半积分——即使中途放弃也算。完成全程再拿另一半。', en: 'Starting is the hardest part. So as long as you make it <b>5 minutes</b>, you get half the reward \u2014 even if you stop. Finish the full session for the other half.' },
+  focus_blurb: { zh: '启动是最难的。坐下 <b>5 分钟</b> 就有保底奖励，随时点「完成 ✓」即可拿到全部积分。', en: 'Starting is the hardest part. Sit for <b>5 minutes</b> to lock in a start-up reward, and tap "Done ✓" any time to claim the full session credit.' },
   focus_blurb2: { zh: '最喜欢看你勇敢地坐下来那一刻。', en: ' loves seeing the moment you bravely sit down.' },
   log_title: { zh: '心情与记录', en: 'Mood & journal' },
   log_sub: { zh: '温柔地看看自己走过的路', en: 'A gentle look at the path you\u2019ve walked' },
@@ -5808,6 +5863,7 @@ const I18N_MAP = {
   register_account: { zh: '注册账号', en: 'Create account' },
   no_account: { zh: '还没有账号？', en: 'No account yet?' },
   has_account: { zh: '已有账号？', en: 'Have an account?' },
+  forgot_pw: { zh: '忘记密码？', en: 'Forgot password?' },
 };
 function getLang(){ return localStorage.getItem('hg_lang') || 'zh'; }
 function T(zh, en){ return getLang()==='en' ? en : zh; }
@@ -6176,16 +6232,36 @@ let focusDuration = 0;
 let focusStarted = false;
 let focusHalfDone = false;
 
+/* Quick-preset chips — set the number input and flash which preset is
+   active so users know the current duration. Only acts when not running. */
+function setFocusDuration(mins) {
+  if (focusStarted) return;
+  const input = document.getElementById('focusDuration');
+  if (!input) return;
+  input.value = mins;
+  document.querySelectorAll('.focus-preset').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.textContent) === mins);
+  });
+}
+
 function startFocus() {
   const name = document.getElementById('focusTaskName').value.trim() || T('专注时间','Focus time');
-  focusDuration = parseInt(document.getElementById('focusDuration').value);
+  // Guard against empty / NaN / tiny values — fall back to 25-minute default.
+  let parsed = parseInt(document.getElementById('focusDuration').value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) parsed = 25;
+  if (parsed > 240) parsed = 240;
+  focusDuration = parsed;
+  document.getElementById('focusDuration').value = focusDuration;
   focusEndTime = Date.now() + focusDuration * 60000;
   focusStarted = true;
   focusHalfDone = false;
   document.getElementById('focusStartBtn').style.display = 'none';
   document.getElementById('focusStopBtn').style.display = 'block';
-  document.getElementById('focusDoneBtn').style.display = 'none';
+  // "完成" is now visible from the start — tapping it any time = full credit.
+  document.getElementById('focusDoneBtn').style.display = 'block';
   document.getElementById('timerLabel').textContent = T('专注中：','Focusing: ') + name;
+  // Prime the mm:ss display so the card doesn't flash the stale stored value.
+  updateFocusTimer();
   focusInterval = setInterval(updateFocusTimer, 500);
 }
 
@@ -6198,8 +6274,7 @@ function updateFocusTimer() {
   const elapsed = focusDuration * 60000 - remaining;
   if (elapsed >= 300000 && !focusHalfDone) {
     focusHalfDone = true;
-    document.getElementById('focusDoneBtn').style.display = 'block';
-    toast(T('坚持了 5 分钟！可以领启动奖励啦~','Made it 5 minutes! Start-up reward unlocked ~'), '🌱');
+    toast(T('坚持了 5 分钟！启动奖励已保底~','Made it 5 minutes! Start-up reward locked in ~'), '🌱');
   }
   if (remaining === 0) {
     clearInterval(focusInterval);
@@ -6217,24 +6292,26 @@ function completeFocus() {
   const newStage = getPetStage();
   if (newStage > state.pet.stage) state.pet.stage = newStage;
   save();
+  playFlowerCelebration();
   resetFocusUI();
   toast(T(`完整专注 ${focusDuration} 分钟！+${xp}xp +${stars}✨ 太棒了！`, `Full ${focusDuration}-min focus! +${xp}xp +${stars}✨ amazing!`), '🎉');
   renderAll();
 }
 
+/* Called when the user taps "完成 ✓" before the timer runs out. Per the
+   product ask: an early finish still pays out the *full* session reward,
+   plus the same pink-flower celebration. */
+function finishFocusEarly() {
+  if (!focusStarted) return;
+  clearInterval(focusInterval);
+  completeFocus();
+}
+
 function stopFocus(completed) {
   clearInterval(focusInterval);
-  if (completed && focusHalfDone) {
-    const xp = Math.max(3, Math.floor(focusDuration * 0.5));
-    const stars = Math.max(2, Math.floor(focusDuration * 0.3));
-    state.pet.xp += xp;
-    state.stars += stars;
-    state.dims.wisdom += Math.ceil(xp / 4);
-    save();
-    toast(T(`启动奖励到手！+${xp}xp +${stars}✨`, `Start-up reward! +${xp}xp +${stars}✨`), '🌱');
-    const newStage = getPetStage();
-    if (newStage > state.pet.stage) state.pet.stage = newStage;
-  } else if (!completed && focusHalfDone) {
+  // NOTE: the "完成 ✓" button now routes through finishFocusEarly() for
+  // full credit, so this path only handles the "放弃" (give up) button.
+  if (focusHalfDone) {
     const xp = Math.max(3, Math.floor(focusDuration * 0.3));
     state.pet.xp += xp;
     state.stars += Math.floor(xp / 2);
@@ -6253,8 +6330,54 @@ function resetFocusUI() {
   document.getElementById('focusStartBtn').style.display = 'block';
   document.getElementById('focusStopBtn').style.display = 'none';
   document.getElementById('focusDoneBtn').style.display = 'none';
-  document.getElementById('timerTime').textContent = '25:00';
+  // Restore the configured duration on the timer display so the next
+  // session preview matches what the number input shows.
+  const input = document.getElementById('focusDuration');
+  let mins = input ? parseInt(input.value, 10) : 25;
+  if (!Number.isFinite(mins) || mins < 1) mins = 25;
+  document.getElementById('timerTime').textContent = `${String(mins).padStart(2,'0')}:00`;
   document.getElementById('timerLabel').textContent = T('准备一段温柔的专注','Ready for a gentle focus session');
+}
+
+/* Release a flurry of pink flowers from the timer card. Fires when a
+   focus session completes (naturally or via "完成 ✓"). Uses a dedicated
+   fixed-overlay layer so petals can fall past surrounding panels. */
+function playFlowerCelebration() {
+  const layer = document.getElementById('flowerLayer');
+  if (!layer) return;
+  const anchor = document.querySelector('#view-focus .timer-display')
+              || document.getElementById('timerTime');
+  let cx, cy;
+  if (anchor) {
+    const rect = anchor.getBoundingClientRect();
+    cx = rect.left + rect.width / 2;
+    cy = rect.top + rect.height * 0.5;
+  } else {
+    cx = window.innerWidth / 2;
+    cy = window.innerHeight * 0.3;
+  }
+  const petals = ['🌸','🌷','💮','🌺','🏵️'];
+  const n = 34;
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('span');
+    p.className = 'flower-petal';
+    p.textContent = petals[Math.floor(Math.random() * petals.length)];
+    const startX = cx + (Math.random() - 0.5) * 120;
+    p.style.left = `${startX}px`;
+    p.style.top = `${cy}px`;
+    // Spread outward horizontally, fall downward past the viewport.
+    const dx = (Math.random() - 0.5) * 420;
+    const dy = 220 + Math.random() * 260;
+    const rot = (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 360);
+    p.style.setProperty('--fdx', `${dx.toFixed(1)}px`);
+    p.style.setProperty('--fdy', `${dy.toFixed(1)}px`);
+    p.style.setProperty('--frot', `${rot.toFixed(0)}deg`);
+    p.style.animationDelay = `${(Math.random() * 0.5).toFixed(2)}s`;
+    p.style.animationDuration = `${(1.9 + Math.random() * 0.9).toFixed(2)}s`;
+    p.style.fontSize = `${18 + Math.random() * 14}px`;
+    layer.appendChild(p);
+    setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, 3200);
+  }
 }
 
 function toast(msg, icon = '✨') {
@@ -6382,6 +6505,7 @@ window._bootApp = function() {
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
          createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         sendPasswordResetEmail,
          signOut as fbSignOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -6430,9 +6554,9 @@ onAuthStateChanged(auth, async user => {
     currentUser = user;
     window._firebaseReady = true;
     updateUserEmailDisplay(user);
-    // Show app (always), show the logout button, close settings if it was open.
+    // Show app (always), close settings if it was open. The sign-out button
+    // lives inside the Settings modal now, so no header toggle is needed.
     document.getElementById('appScreen').style.display = 'block';
-    const so = document.getElementById('headerSignOutBtn'); if (so) so.style.display = '';
     // If the user was in the settings modal signing in, close it once we're in.
     const sm = document.getElementById('settingsModal'); if (sm) sm.classList.remove('active');
     await loadFromFirestore();
@@ -6459,9 +6583,9 @@ onAuthStateChanged(auth, async user => {
       if (typeof window.renderAll === 'function') window.renderAll();
       window._intentionalSignOut = false;
     }
-    // Keep the app VISIBLE — sign-in is now optional. Hide the signout button.
+    // Keep the app VISIBLE — sign-in is now optional. Sign-out lives in the
+    // Settings modal (shown/hidden via settingsAccountSignedIn/Out blocks).
     document.getElementById('appScreen').style.display = 'block';
-    const so = document.getElementById('headerSignOutBtn'); if (so) so.style.display = 'none';
     if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
     const el = document.getElementById('userEmail');
     if (el) el.textContent = (typeof getLang === 'function' && getLang()==='en') ? 'Guest' : '未登录';
@@ -6505,6 +6629,55 @@ window.signUpEmail = async () => {
   catch(e) {
     const msgs = { 'auth/email-already-in-use':'该邮箱已注册', 'auth/invalid-email':'邮箱格式不对' };
     showAuthError(msgs[e.code] || e.message); showAuthLoading(false);
+  }
+};
+/* Password-reset flow — asks Firebase Auth to email a reset link to the
+   address typed in the login form. No separate input: we reuse emailInput
+   (and fall back to prompt() if the field is empty) so the UI stays simple. */
+window.resetPassword = async () => {
+  const en = (typeof getLang === 'function' && getLang() === 'en');
+  let email = (document.getElementById('emailInput')?.value || '').trim();
+  if (!email) {
+    email = (prompt(en ? 'Enter the email address to receive the reset link:' : '请输入要发送重置邮件的邮箱地址：') || '').trim();
+  }
+  if (!email) return;
+  // Light client-side sanity check before round-tripping to Firebase.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showAuthError(en ? 'That email address looks off.' : '邮箱格式不对'); return;
+  }
+  showAuthLoading(true);
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showAuthLoading(false);
+    // Reuse the auth-error panel for success, but tint it green so it doesn't
+    // read as a failure. The panel resets to its red error style on next error.
+    const el = document.getElementById('authError');
+    if (el) {
+      el.textContent = en
+        ? `Reset link sent to ${email}. Check your inbox (and spam folder).`
+        : `已发送重置邮件到 ${email}，请查收（记得看垃圾邮件箱）。`;
+      el.style.display = 'block';
+      el.style.background = '#ecfdf5';
+      el.style.borderColor = '#a7f3d0';
+      el.style.color = '#065f46';
+      // Revert styling after a few seconds so later errors display correctly.
+      setTimeout(() => {
+        el.style.background = ''; el.style.borderColor = ''; el.style.color = '';
+        el.style.display = 'none';
+      }, 6000);
+    }
+  } catch (e) {
+    showAuthLoading(false);
+    const msgs = en ? {
+      'auth/user-not-found': 'No account is registered to that email.',
+      'auth/invalid-email': 'That email address looks off.',
+      'auth/too-many-requests': 'Too many attempts — please wait a bit before trying again.'
+    } : {
+      'auth/user-not-found': '没有找到这个邮箱对应的账号',
+      'auth/invalid-email': '邮箱格式不对',
+      'auth/too-many-requests': '请求太频繁，请稍后再试'
+    };
+    showAuthError(msgs[e.code] || e.message);
   }
 };
 window.signOut = async () => {
