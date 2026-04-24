@@ -1401,6 +1401,8 @@
       <button class="btn btn-primary" data-i18n="new_task" style="padding: 10px 20px; flex: 0 0 auto;" onclick="openTaskModal()">+ 新任务</button>
     </div>
 
+    <div id="questTagBar" style="display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 16px; min-height:0;"></div>
+
     <div class="panel">
       <div class="panel-title" data-i18n="one_time">一次性任务</div>
       <div class="panel-sub" data-i18n="one_time_sub">做完就消失，适合一次性挑战</div>
@@ -4757,12 +4759,73 @@ function isTaskOverdue(task) {
   return todayStr() > task.dueDate;
 }
 
+let _questTagFilter = new Set();
+function toggleQuestTagFilter(tag){
+  if (_questTagFilter.has(tag)) _questTagFilter.delete(tag);
+  else _questTagFilter.add(tag);
+  renderTasks();
+}
+function clearQuestTagFilter(){
+  _questTagFilter.clear();
+  renderTasks();
+}
+/* AND-filter: a task passes only if it matches EVERY active tag.
+   Dim tags match task.dim; special tags match must-do / pinned / due-in-7d. */
+function taskMatchesQuestFilter(task, mustDoTodayIds, pinnedTaskIds){
+  if (!_questTagFilter.size) return true;
+  const today = todayStr();
+  for (const tag of _questTagFilter) {
+    if (tag === 'must_today') {
+      if (!mustDoTodayIds.includes(task.id)) return false;
+    } else if (tag === 'pinned') {
+      if (!pinnedTaskIds.includes(task.id)) return false;
+    } else if (tag === 'due_soon') {
+      if (!task.dueDate) return false;
+      // dueDate within the next 7 days (inclusive of today, exclusive of 8th day out).
+      const due = new Date(task.dueDate + 'T00:00:00');
+      const now = new Date(today + 'T00:00:00');
+      const diffDays = Math.round((due - now) / 86400000);
+      if (diffDays < 0 || diffDays > 7) return false;
+    } else {
+      // dimension tag (career/charm/wealth/wisdom/health)
+      if (task.dim !== tag) return false;
+    }
+  }
+  return true;
+}
+function renderQuestTagBar(){
+  const bar = document.getElementById('questTagBar');
+  if (!bar) return;
+  const dimLabels = getLang()==='en'
+    ? { career:'💼 Career', charm:'💖 Charm', wealth:'💰 Wealth', wisdom:'📚 Wisdom', health:'🌿 Health' }
+    : { career:'💼 事业',   charm:'💖 魅力', wealth:'💰 财富', wisdom:'📚 智慧', health:'🌿 健康' };
+  const specialLabels = getLang()==='en'
+    ? { must_today:'⭐ Must today', pinned:'📌 Pinned', due_soon:'⏰ Due in 7 days' }
+    : { must_today:'⭐ 今天必做',   pinned:'📌 置顶',   due_soon:'⏰ 一周内截止' };
+  const order = ['career','charm','wealth','wisdom','health','must_today','pinned','due_soon'];
+  const all = Object.assign({}, dimLabels, specialLabels);
+  const pills = order.map(tag => {
+    const on = _questTagFilter.has(tag);
+    const bg = on ? 'var(--peach)' : 'var(--cream-2)';
+    const color = on ? '#fff' : 'var(--ink-soft)';
+    return `<button data-quest-tag="${tag}" style="background:${bg}; color:${color}; border:none; border-radius:999px; padding:5px 12px; font-family:inherit; font-size:12px; cursor:pointer;">${all[tag]}</button>`;
+  }).join('');
+  const clearBtn = _questTagFilter.size
+    ? `<button onclick="clearQuestTagFilter()" style="background:transparent; color:var(--ink-soft); border:1.5px dashed var(--cream-2); border-radius:999px; padding:4px 10px; font-family:inherit; font-size:12px; cursor:pointer;">${T('清除筛选','Clear filters')}</button>`
+    : '';
+  bar.innerHTML = pills + clearBtn;
+  bar.querySelectorAll('button[data-quest-tag]').forEach(btn => {
+    btn.addEventListener('click', () => toggleQuestTagFilter(btn.getAttribute('data-quest-tag')));
+  });
+}
+
 function renderTasks() {
   ensureTaskMetadata();
   const t = todayStr();
   const todayDone = state.completions[t] || [];
   const mustDoTodayIds = getMustDoTodayIds(t);
   const pinnedTaskIds = state.pinnedTaskIds || [];
+  renderQuestTagBar();
   const dimIcons = { career: '💼', charm: '💖', wealth: '💰', wisdom: '📚', health: '🌿' };
   const diffTags = getLang()==='en' ? ['🌱 Tiny','🌿 Normal','🌳 Challenge','🌲 Big'] : ['🌱小事', '🌿一般', '🌳挑战', '🌲大事'];
   const dimNames = getLang()==='en'
@@ -4947,9 +5010,11 @@ function renderTasks() {
   const doneCount = activeTasks.filter(t2 => isTaskDone(t2)).length;
   document.getElementById('todayProgress').textContent = `${doneCount}/${activeTasks.length}`;
 
-  const onceTasks    = sortByDone(state.tasks.filter(task => task.type === 'once'));
+  const passes = (task) => taskMatchesQuestFilter(task, mustDoTodayIds, pinnedTaskIds);
+  const onceTasks    = sortByDone(state.tasks.filter(task => task.type === 'once' && passes(task)));
   // Weekly tasks live with daily on the task page under the 每日/定期 section.
-  const dailyTasks   = sortByDone(state.tasks.filter(task => task.type === 'daily' || task.type === 'weekly'));
+  const dailyTasks   = sortByDone(state.tasks.filter(task => (task.type === 'daily' || task.type === 'weekly') && passes(task)));
+  const filterActive = _questTagFilter.size > 0;
 
   const rowWithDelete = (task) => `
     <div style="display: flex; align-items: center; gap: 8px; position: relative;">
@@ -4960,11 +5025,11 @@ function renderTasks() {
 
   document.getElementById('oneTimeList').innerHTML = onceTasks.length
     ? onceTasks.map(rowWithDelete).join('')
-    : `<div class="empty">${T('还没有一次性任务','No one-time tasks yet')}</div>`;
+    : `<div class="empty">${filterActive ? T('没有匹配这些标签的任务','No tasks match these tags') : T('还没有一次性任务','No one-time tasks yet')}</div>`;
 
   document.getElementById('dailyList').innerHTML = dailyTasks.length
     ? dailyTasks.map(rowWithDelete).join('')
-    : `<div class="empty">${T('还没有每日任务','No daily tasks yet')}</div>`;
+    : `<div class="empty">${filterActive ? T('没有匹配这些标签的任务','No tasks match these tags') : T('还没有每日任务','No daily tasks yet')}</div>`;
 }
 
 function startTaskPartial(id) {
@@ -5642,6 +5707,11 @@ const I18N_MAP = {
   close: { zh: '关掉', en: 'Close' },
   card_fact_title: { zh: '🌿 小常识', en: '🌿 Plant trivia' },
   card_persona_title: { zh: '✨ 小性格', en: '✨ Tiny personality' },
+  filter_must_today: { zh: '⭐ 今天必做', en: '⭐ Must today' },
+  filter_pinned: { zh: '📌 置顶', en: '📌 Pinned' },
+  filter_due_soon: { zh: '⏰ 一周内截止', en: '⏰ Due in 7 days' },
+  filter_clear: { zh: '清除筛选', en: 'Clear filters' },
+  filter_no_match: { zh: '没有匹配这些标签的任务', en: 'No tasks match these tags' },
   cards_sub: { zh: '完成任务有机率掉落 · 稀有卡让人更有力量', en: 'Completing tasks may drop a card \u00b7 rare ones feel extra magical' },
   f_all: { zh: '全部', en: 'All' },
   dim_career: { zh: '💼 事业', en: '💼 Career' },
