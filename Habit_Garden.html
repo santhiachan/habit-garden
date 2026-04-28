@@ -1501,58 +1501,56 @@
     <div class="tasks-header" style="position: relative;">
       <div class="section-title">
         <span data-i18n="wish_shop">许愿商店</span>
-        <span class="sub" data-i18n="wish_shop_sub">用星星换你真正想要的</span>
+        <span class="sub" data-i18n="shop_intro">给努力一个正当的出口。用星星换取后，请无罪恶地享受吧</span>
       </div>
       <div style="display: flex; align-items: center; gap: 14px;">
-        <!-- Translucent wishing bottle with rolled note inside -->
-        <svg class="wish-bottle" viewBox="0 0 140 100" width="96" height="68" aria-hidden="true">
+        <!-- Upright wishing bottle filled with colorful stars -->
+        <svg class="wish-bottle" viewBox="0 0 100 120" width="80" height="96" aria-hidden="true">
           <defs>
             <linearGradient id="wbGlass" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stop-color="#cfe7ec" stop-opacity="0.55"/>
               <stop offset="60%" stop-color="#a9cbd8" stop-opacity="0.45"/>
               <stop offset="100%" stop-color="#7ba3b5" stop-opacity="0.4"/>
             </linearGradient>
-            <linearGradient id="wbScroll" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#fbf2e0"/>
-              <stop offset="100%" stop-color="#f0e2c4"/>
-            </linearGradient>
+            <clipPath id="wbBodyClip">
+              <!-- inner clip path: matches bottle body interior -->
+              <path d="M22 42 Q22 36 28 33 L34 30 Q36 28 36 24 L36 18 Q36 16 38 16 L62 16 Q64 16 64 18 L64 24 Q64 28 66 30 L72 33 Q78 36 78 42 L78 100 Q78 108 70 108 L30 108 Q22 108 22 100 Z"/>
+            </clipPath>
           </defs>
-          <!-- soft yellow halo -->
-          <g transform="rotate(-14 70 50)">
-            <path d="M14 64 Q10 68 14 72 L114 72 Q120 70 116 64 Z" fill="#f3d388" opacity="0.35"/>
-            <!-- bottle body -->
-            <path d="M16 38 L16 62 Q16 70 24 70 L96 70 Q104 70 108 64 L120 56 Q124 54 124 50 Q124 46 120 44 L108 36 Q104 30 96 30 L24 30 Q16 30 16 38 Z"
-                  fill="url(#wbGlass)" stroke="#3d3527" stroke-width="2" stroke-linejoin="round"/>
-            <!-- cork -->
-            <rect x="118" y="40" width="14" height="20" rx="2" fill="#d4b896" stroke="#3d3527" stroke-width="2"/>
-            <!-- rolled paper scroll: spiral end on the left, rolled body extending right, with binding string -->
-            <g>
-              <!-- main rolled paper body (a horizontal cylinder lying inside the bottle) -->
-              <path d="M44 46 L92 46 Q96 46 96 50 L96 60 Q96 64 92 64 L44 64 Z"
-                    fill="url(#wbScroll)" stroke="#3d3527" stroke-width="1.6" stroke-linejoin="round"/>
-              <!-- right cap of the rolled tube -->
-              <ellipse cx="92" cy="55" rx="4" ry="9" fill="#f0e2c4" stroke="#3d3527" stroke-width="1.4"/>
-              <!-- spiral end on the left (visible roll-up) -->
-              <circle cx="44" cy="55" r="9" fill="#fbf2e0" stroke="#3d3527" stroke-width="1.6"/>
-              <path d="M44 55 m-6 0 a6 6 0 1 1 12 0 a4 4 0 1 1 -8 0 a2.2 2.2 0 1 1 4.4 0"
-                    fill="none" stroke="#c4a878" stroke-width="1.2" stroke-linecap="round"/>
-              <!-- binding string wrapped around the middle -->
-              <path d="M64 44 Q66 55 64 66" fill="none" stroke="#3d3527" stroke-width="1.4" stroke-linecap="round"/>
-              <path d="M62 44 L66 44" stroke="#3d3527" stroke-width="1.4" stroke-linecap="round"/>
-              <path d="M62 66 L66 66" stroke="#3d3527" stroke-width="1.4" stroke-linecap="round"/>
-              <!-- string tail dangling -->
-              <path d="M66 66 Q70 70 68 74" fill="none" stroke="#3d3527" stroke-width="1.2" stroke-linecap="round"/>
-            </g>
-            <!-- highlight on glass -->
-            <path d="M28 36 Q34 34 44 35" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
-            <path d="M30 42 L36 42" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+          <!-- soft halo behind bottle -->
+          <ellipse cx="50" cy="108" rx="34" ry="6" fill="#f3d388" opacity="0.35"/>
+          <!-- bottle body (upright, chubby) -->
+          <path d="M22 42 Q22 36 28 33 L34 30 Q36 28 36 24 L36 18 Q36 16 38 16 L62 16 Q64 16 64 18 L64 24 Q64 28 66 30 L72 33 Q78 36 78 42 L78 100 Q78 108 70 108 L30 108 Q22 108 22 100 Z"
+                fill="url(#wbGlass)" stroke="#3d3527" stroke-width="2" stroke-linejoin="round"/>
+          <!-- cork on top -->
+          <rect x="36" y="8" width="28" height="10" rx="2" fill="#d4b896" stroke="#3d3527" stroke-width="2"/>
+          <!-- bottle lip ring -->
+          <line x1="36" y1="18" x2="64" y2="18" stroke="#3d3527" stroke-width="1.5" opacity="0.55"/>
+          <!-- colorful stars inside the bottle -->
+          <g clip-path="url(#wbBodyClip)">
+            <!-- pile of stars at the bottom -->
+            <path d="M34 92 L36.5 97 L42 98 L37.5 101.5 L39 107 L34 104 L29 107 L30.5 101.5 L26 98 L31.5 97 Z" fill="#f2a78d" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
+            <path d="M50 88 L52.5 93 L58 94 L53.5 97.5 L55 103 L50 100 L45 103 L46.5 97.5 L42 94 L47.5 93 Z" fill="#f5c66b" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
+            <path d="M66 92 L68.5 97 L74 98 L69.5 101.5 L71 107 L66 104 L61 107 L62.5 101.5 L58 98 L63.5 97 Z" fill="#a8c97a" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
+            <path d="M40 78 L42 82 L46.5 82.8 L43 86 L44 90.5 L40 88 L36 90.5 L37 86 L33.5 82.8 L38 82 Z" fill="#c4b5d9" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
+            <path d="M60 78 L62 82 L66.5 82.8 L63 86 L64 90.5 L60 88 L56 90.5 L57 86 L53.5 82.8 L58 82 Z" fill="#e8a5a5" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
+            <path d="M50 70 L51.6 73.5 L55.4 74.2 L52.5 77 L53.3 80.8 L50 79 L46.7 80.8 L47.5 77 L44.6 74.2 L48.4 73.5 Z" fill="#9bc4d1" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
+            <!-- floating stars higher up -->
+            <path d="M36 60 L37.2 62.6 L40 63 L37.8 65 L38.4 67.8 L36 66.4 L33.6 67.8 L34.2 65 L32 63 L34.8 62.6 Z" fill="#f5c66b" stroke="#3d3527" stroke-width="0.7" stroke-linejoin="round"/>
+            <path d="M62 56 L63.2 58.6 L66 59 L63.8 61 L64.4 63.8 L62 62.4 L59.6 63.8 L60.2 61 L58 59 L60.8 58.6 Z" fill="#f2a78d" stroke="#3d3527" stroke-width="0.7" stroke-linejoin="round"/>
+            <circle cx="48" cy="52" r="1.6" fill="#c4b5d9"/>
+            <circle cx="56" cy="44" r="1.4" fill="#a8c97a"/>
+            <circle cx="40" cy="42" r="1.2" fill="#e8a5a5"/>
           </g>
-          <!-- floating sparkles around -->
+          <!-- highlight on glass -->
+          <path d="M28 46 Q26 60 28 78" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.7"/>
+          <path d="M32 50 L32 56" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+          <!-- floating sparkles around bottle -->
           <g opacity="0.85">
-            <path d="M8 22 L10 26 L14 28 L10 30 L8 34 L6 30 L2 28 L6 26 Z" fill="#f2a78d"/>
-            <circle cx="128" cy="18" r="2" fill="#c4b5d9"/>
-            <circle cx="120" cy="92" r="2.2" fill="#e8a5a5"/>
-            <path d="M126 80 L127 83 L130 84 L127 85 L126 88 L125 85 L122 84 L125 83 Z" fill="#7a9b6e" opacity="0.8"/>
+            <path d="M10 30 L11.5 33.5 L15 35 L11.5 36.5 L10 40 L8.5 36.5 L5 35 L8.5 33.5 Z" fill="#f2a78d"/>
+            <circle cx="92" cy="24" r="2" fill="#c4b5d9"/>
+            <path d="M88 96 L89 98.5 L91.5 99.5 L89 100.5 L88 103 L87 100.5 L84.5 99.5 L87 98.5 Z" fill="#7a9b6e" opacity="0.8"/>
+            <circle cx="14" cy="78" r="1.8" fill="#e8a5a5"/>
           </g>
         </svg>
         <div style="font-size: 20px; font-weight: 600; color: var(--peach-deep); font-family: 'Fraunces', serif;">
@@ -1561,10 +1559,8 @@
       </div>
     </div>
 
-    <div class="insight-card" style="margin-bottom: 20px;">
-      <span class="quote-mark">"</span>
-      <span data-i18n="shop_intro">这里的奖励都是你平时"偷懒"会做或者"犹豫太久"不敢做的事。兑换它们不是放纵，是<b>给努力一个正当的出口</b>。 用星星换取后，请无罪恶感地享受 🌷</span>
-      <button class="btn btn-ghost" data-i18n="add_reward" style="margin-top: 12px; padding: 6px 12px; font-size: 13px;" onclick="openShopEditModal()">+ 添加我想要的奖励</button>
+    <div style="margin-bottom: 20px;">
+      <button class="btn btn-ghost" data-i18n="add_reward" style="padding: 8px 16px; font-size: 13px;" onclick="openShopEditModal()">+ 添加我想要的奖励</button>
     </div>
 
     <div class="shop-grid" id="shopGrid"></div>
@@ -1889,7 +1885,15 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label data-i18n="task_diff">难度（决定奖励）</label>
+        <label data-i18n="task_ease">开始难度</label>
+        <select id="taskEaseInput">
+          <option value="easy" data-i18n="ease_easy">很容易开始</option>
+          <option value="medium" selected data-i18n="ease_medium">一般</option>
+          <option value="hard" data-i18n="ease_hard">有点难开始</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label data-i18n="task_diff">完成难度</label>
         <select id="taskDifficultyInput">
           <option value="1" data-i18n="d1">小事 (+5)</option>
           <option value="2" selected="" data-i18n="d2">一般 (+15)</option>
@@ -1897,6 +1901,8 @@
           <option value="4" data-i18n="d4">大事 (+60)</option>
         </select>
       </div>
+    </div>
+    <div class="form-row">
       <div class="form-group">
         <label data-i18n="task_type">类型</label>
         <select id="taskTypeInput">
@@ -1906,19 +1912,13 @@
           <option value="once" data-i18n="once_short">一次性</option>
         </select>
       </div>
+      <div class="form-group">
+        <label data-i18n="task_due">截止日期</label>
+        <input type="date" id="taskDueDateInput">
+      </div>
     </div>
     <div class="form-group">
-      <label data-i18n="task_ease">现在看起来有多容易开始？</label>
-      <select id="taskEaseInput">
-        <option value="easy" data-i18n="ease_easy">很容易开始</option>
-        <option value="medium" selected data-i18n="ease_medium">一般</option>
-        <option value="hard" data-i18n="ease_hard">有点难开始</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label data-i18n="task_due">截止日期（可选）</label>
-      <input type="date" id="taskDueDateInput">
-      <div style="font-size:12px; color:var(--ink-soft); margin-top:6px;" data-i18n="task_due_hint">
+      <div style="font-size:12px; color:var(--ink-soft);" data-i18n="task_due_hint">
         定期任务过期后自动隐藏；一次性任务过期会变成淡红色提醒。
       </div>
     </div>
@@ -5872,11 +5872,10 @@ const I18N_MAP = {
   wish_shop: { zh: '许愿商店', en: 'Wish shop' },
   wish_shop_sub: { zh: '用星星换你真正想要的', en: 'Trade stars for what you really want' },
   stars_unit: { zh: '颗星', en: 'stars' },
-  shop_intro: { zh: '这里的奖励都是你平时"偷懒"会做或者"犹豫太久"不敢做的事。兑换它们不是放纵，是<b>给努力一个正当的出口</b>。 用星星换取后，请无罪恶感地享受 🌷', en: 'These rewards are the things you\u2019d normally \u201cslack off\u201d to do or hesitate too long over. Trading for them isn\u2019t indulgence \u2014 it\u2019s <b>giving your effort a proper outlet</b>. Once you spend stars, enjoy them guilt-free 🌷' },
+  shop_intro: { zh: '给努力一个正当的出口。用星星换取后，请无罪恶地享受吧', en: 'Give your effort a proper outlet. Once you spend stars, enjoy them guilt-free' },
   add_reward: { zh: '+ 添加我想要的奖励', en: '+ Add a reward I want' },
   cards_title: { zh: '卡片收藏册', en: 'Card collection' },
   blind_box: { zh: '拆开种子盲盒', en: 'Open seed box' },
-  pick_plant: { zh: '我要自己选择植物', en: 'Pick my plant' },
   pick_plant_title: { zh: '选一棵想养的植物', en: 'Pick a plant to raise' },
   pick_plant_sub: { zh: '每一种都有自己的小性格 🌱', en: 'Each one has a tiny personality 🌱' },
   readopt_btn: { zh: '重新领养新植物', en: 'Adopt a new plant' },
@@ -5932,7 +5931,7 @@ const I18N_MAP = {
   task_name: { zh: '任务名称', en: 'Task name' },
   task_name_ph: { zh: '例如：读书 30 分钟', en: 'e.g. Read for 30 minutes' },
   task_dim: { zh: '所属维度（决定加哪项能力）', en: 'Dimension (which stat it grows)' },
-  task_diff: { zh: '难度（决定奖励）', en: 'Difficulty (decides reward)' },
+  task_diff: { zh: '完成难度', en: 'Completion difficulty' },
   d1: { zh: '小事 (+5)', en: 'Tiny (+5)' },
   d2: { zh: '一般 (+15)', en: 'Normal (+15)' },
   d3: { zh: '挑战 (+30)', en: 'Challenge (+30)' },
@@ -5942,11 +5941,11 @@ const I18N_MAP = {
   weekly_short: { zh: '每周', en: 'Weekly' },
   monthly_short: { zh: '每月', en: 'Monthly' },
   once_short: { zh: '一次性', en: 'One-time' },
-  task_ease: { zh: '现在看起来有多容易开始？', en: 'How easy does it look to start?' },
+  task_ease: { zh: '开始难度', en: 'Starting difficulty' },
   ease_easy: { zh: '很容易开始', en: 'Very easy to start' },
   ease_medium: { zh: '一般', en: 'Medium' },
   ease_hard: { zh: '有点难开始', en: 'A bit hard to start' },
-  task_due: { zh: '截止日期（可选）', en: 'Due date (optional)' },
+  task_due: { zh: '截止日期', en: 'Due date' },
   task_due_hint: { zh: '定期任务过期后自动隐藏；一次性任务过期会变成淡红色提醒。', en: 'Recurring tasks hide after the due date; one-time tasks turn pale red as a nudge.' },
   cancel: { zh: '取消', en: 'Cancel' },
   save: { zh: '保存', en: 'Save' },
@@ -5994,7 +5993,12 @@ function setLang(l){
   document.documentElement.lang = (l==='en' ? 'en' : 'zh-CN');
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     const k = el.getAttribute('data-i18n');
-    if(I18N_MAP[k]) el.textContent = I18N_MAP[k][l];
+    if(I18N_MAP[k]) {
+      const v = I18N_MAP[k][l];
+      // Use innerHTML if the string contains HTML tags so <b>/<i>/etc render
+      if (/<[a-z][^>]*>/i.test(v)) el.innerHTML = v;
+      else el.textContent = v;
+    }
   });
   document.querySelectorAll('[data-i18n-ph]').forEach(el=>{
     const k = el.getAttribute('data-i18n-ph');
