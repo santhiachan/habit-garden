@@ -6744,6 +6744,14 @@ async function loadFromFirestore() {
       // contain stale data from localStorage that would "fight" the cloud.
       window.state = { ...window.state, ...data };
       window._cloudLoaded = true;
+      // The cloud doc may carry a stale `lastActiveDate` from another device's
+      // last save (e.g. yesterday). Run the day-roll handler so completed
+      // one-time tasks from previous days get swept out of the freshly-loaded
+      // state — otherwise they'd reappear here and overwrite the local sweep
+      // that the immediate boot already performed.
+      if (typeof window.handleDayRoll === 'function') {
+        try { window.handleDayRoll(); } catch(e) { console.warn('[firestore] post-load dayroll failed:', e); }
+      }
       // Also update localStorage so offline reload shows the latest cloud data.
       try { localStorage.setItem('habit_garden_v1', JSON.stringify(window.state)); } catch(e) {}
     } else {
@@ -6768,6 +6776,12 @@ function subscribeToChanges() {
     if (snap.exists()) {
       const data = snap.data();
       window.state = { ...window.state, ...data };
+      // Snapshots from another device can carry an old `lastActiveDate` plus
+      // already-completed one-time tasks. Re-run the day-roll sweep so those
+      // don't pop back into the list after a remote update.
+      if (typeof window.handleDayRoll === 'function') {
+        try { window.handleDayRoll(); } catch(e) { console.warn('[firestore] snapshot dayroll failed:', e); }
+      }
       try { localStorage.setItem('habit_garden_v1', JSON.stringify(window.state)); } catch(e) {}
       if (typeof window.renderAll === 'function') window.renderAll();
     }
