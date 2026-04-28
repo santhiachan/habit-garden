@@ -386,19 +386,32 @@
     font-size: 24px;
     line-height: 1;
     background: #fff;
-    border-radius: 12px;
+    border-radius: 14px;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
     user-select: none;
+    box-shadow: 0 1px 0 rgba(61,53,39,0.04);
+    /* Slightly soften emoji saturation for a cozier, Morandi-ish feel */
+    filter: saturate(0.78) brightness(1.02) contrast(0.96);
   }
+  /* Rotate through warm/dopamine pastel tints so the grid feels playful but cohesive */
+  .shop-icon-opt:nth-child(5n+1) { background: #fdf1e3; }
+  .shop-icon-opt:nth-child(5n+2) { background: #f7e8ee; }
+  .shop-icon-opt:nth-child(5n+3) { background: #ecf2e4; }
+  .shop-icon-opt:nth-child(5n+4) { background: #eaf1f4; }
+  .shop-icon-opt:nth-child(5n)   { background: #f3ecf7; }
   .shop-icon-opt:hover {
-    transform: scale(1.08);
+    transform: scale(1.12) rotate(-2deg);
     border-color: var(--butter);
+    box-shadow: 0 3px 0 rgba(61,53,39,0.08);
+    filter: saturate(0.92) brightness(1.04);
   }
   .shop-icon-opt.selected {
     border-color: var(--moss);
-    background: linear-gradient(135deg, rgba(122,155,110,0.22), rgba(122,155,110,0.06));
+    background: linear-gradient(135deg, rgba(122,155,110,0.22), rgba(243,211,136,0.18)) !important;
+    box-shadow: 0 3px 0 rgba(122,155,110,0.18);
+    filter: saturate(0.95);
   }
   .shop-icon-picker::-webkit-scrollbar { width: 6px; }
   .shop-icon-picker::-webkit-scrollbar-thumb { background: var(--cream-2); border-radius: 3px; }
@@ -719,6 +732,20 @@
   .dim-wealth { background: rgba(243, 211, 136, 0.4); }
   .dim-wisdom { background: rgba(196, 181, 217, 0.3); }
   .dim-health { background: rgba(122, 155, 110, 0.25); }
+
+  .wish-bottle {
+    flex-shrink: 0;
+    animation: wishBottleFloat 4.5s ease-in-out infinite;
+    filter: drop-shadow(0 3px 6px rgba(122, 155, 110, 0.18));
+    transition: transform 0.3s ease;
+  }
+  .wish-bottle:hover {
+    transform: rotate(4deg) scale(1.06);
+  }
+  @keyframes wishBottleFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-4px) rotate(-1.5deg); }
+  }
 
   .tasks-header {
     display: flex;
@@ -1360,12 +1387,12 @@
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-view="home" data-i18n="tab_home">🏡 主页</button>
-    <button class="tab" data-view="tasks" data-i18n="tab_tasks">📋 任务</button>
+    <button class="tab active" data-view="home" data-i18n="tab_home">⌂ 主页</button>
+    <button class="tab" data-view="tasks" data-i18n="tab_tasks">✎ 任务</button>
     <button class="tab" data-view="focus" data-i18n="tab_focus">⏱ 专注</button>
-    <button class="tab" data-view="shop" data-i18n="tab_shop">🎁 许愿店</button>
-    <button class="tab" data-view="cards" data-i18n="tab_cards">🃏 卡册</button>
-    <button class="tab" data-view="insights" data-i18n="tab_log">🌙 记录</button>
+    <button class="tab" data-view="shop" data-i18n="tab_shop">❀ 许愿店</button>
+    <button class="tab" data-view="cards" data-i18n="tab_cards">◈ 卡册</button>
+    <button class="tab" data-view="insights" data-i18n="tab_log">☾ 记录</button>
   </nav>
 
   <section class="view active" id="view-home">
@@ -1471,13 +1498,66 @@
   </section>
 
   <section class="view" id="view-shop">
-    <div class="tasks-header">
+    <div class="tasks-header" style="position: relative;">
       <div class="section-title">
         <span data-i18n="wish_shop">许愿商店</span>
         <span class="sub" data-i18n="wish_shop_sub">用星星换你真正想要的</span>
       </div>
-      <div style="font-size: 20px; font-weight: 600; color: var(--peach-deep); font-family: 'Fraunces', serif;">
-        ✨ <span id="shopStars">0</span> <span data-i18n="stars_unit">颗星</span>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <!-- Translucent wishing bottle with rolled note inside -->
+        <svg class="wish-bottle" viewBox="0 0 140 100" width="96" height="68" aria-hidden="true">
+          <defs>
+            <linearGradient id="wbGlass" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#cfe7ec" stop-opacity="0.55"/>
+              <stop offset="60%" stop-color="#a9cbd8" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#7ba3b5" stop-opacity="0.4"/>
+            </linearGradient>
+            <linearGradient id="wbScroll" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fbf2e0"/>
+              <stop offset="100%" stop-color="#f0e2c4"/>
+            </linearGradient>
+          </defs>
+          <!-- soft yellow halo -->
+          <g transform="rotate(-14 70 50)">
+            <path d="M14 64 Q10 68 14 72 L114 72 Q120 70 116 64 Z" fill="#f3d388" opacity="0.35"/>
+            <!-- bottle body -->
+            <path d="M16 38 L16 62 Q16 70 24 70 L96 70 Q104 70 108 64 L120 56 Q124 54 124 50 Q124 46 120 44 L108 36 Q104 30 96 30 L24 30 Q16 30 16 38 Z"
+                  fill="url(#wbGlass)" stroke="#3d3527" stroke-width="2" stroke-linejoin="round"/>
+            <!-- cork -->
+            <rect x="118" y="40" width="14" height="20" rx="2" fill="#d4b896" stroke="#3d3527" stroke-width="2"/>
+            <!-- rolled paper scroll: spiral end on the left, rolled body extending right, with binding string -->
+            <g>
+              <!-- main rolled paper body (a horizontal cylinder lying inside the bottle) -->
+              <path d="M44 46 L92 46 Q96 46 96 50 L96 60 Q96 64 92 64 L44 64 Z"
+                    fill="url(#wbScroll)" stroke="#3d3527" stroke-width="1.6" stroke-linejoin="round"/>
+              <!-- right cap of the rolled tube -->
+              <ellipse cx="92" cy="55" rx="4" ry="9" fill="#f0e2c4" stroke="#3d3527" stroke-width="1.4"/>
+              <!-- spiral end on the left (visible roll-up) -->
+              <circle cx="44" cy="55" r="9" fill="#fbf2e0" stroke="#3d3527" stroke-width="1.6"/>
+              <path d="M44 55 m-6 0 a6 6 0 1 1 12 0 a4 4 0 1 1 -8 0 a2.2 2.2 0 1 1 4.4 0"
+                    fill="none" stroke="#c4a878" stroke-width="1.2" stroke-linecap="round"/>
+              <!-- binding string wrapped around the middle -->
+              <path d="M64 44 Q66 55 64 66" fill="none" stroke="#3d3527" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M62 44 L66 44" stroke="#3d3527" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M62 66 L66 66" stroke="#3d3527" stroke-width="1.4" stroke-linecap="round"/>
+              <!-- string tail dangling -->
+              <path d="M66 66 Q70 70 68 74" fill="none" stroke="#3d3527" stroke-width="1.2" stroke-linecap="round"/>
+            </g>
+            <!-- highlight on glass -->
+            <path d="M28 36 Q34 34 44 35" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+            <path d="M30 42 L36 42" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+          </g>
+          <!-- floating sparkles around -->
+          <g opacity="0.85">
+            <path d="M8 22 L10 26 L14 28 L10 30 L8 34 L6 30 L2 28 L6 26 Z" fill="#f2a78d"/>
+            <circle cx="128" cy="18" r="2" fill="#c4b5d9"/>
+            <circle cx="120" cy="92" r="2.2" fill="#e8a5a5"/>
+            <path d="M126 80 L127 83 L130 84 L127 85 L126 88 L125 85 L122 84 L125 83 Z" fill="#7a9b6e" opacity="0.8"/>
+          </g>
+        </svg>
+        <div style="font-size: 20px; font-weight: 600; color: var(--peach-deep); font-family: 'Fraunces', serif;">
+          ✨ <span id="shopStars">0</span> <span data-i18n="stars_unit">颗星</span>
+        </div>
       </div>
     </div>
 
@@ -1811,10 +1891,10 @@
       <div class="form-group">
         <label data-i18n="task_diff">难度（决定奖励）</label>
         <select id="taskDifficultyInput">
-          <option value="1" data-i18n="d1">🌱 小事 (+5)</option>
-          <option value="2" selected="" data-i18n="d2">🌿 一般 (+15)</option>
-          <option value="3" data-i18n="d3">🌳 挑战 (+30)</option>
-          <option value="4" data-i18n="d4">🌲 大事 (+60)</option>
+          <option value="1" data-i18n="d1">小事 (+5)</option>
+          <option value="2" selected="" data-i18n="d2">一般 (+15)</option>
+          <option value="3" data-i18n="d3">挑战 (+30)</option>
+          <option value="4" data-i18n="d4">大事 (+60)</option>
         </select>
       </div>
       <div class="form-group">
@@ -1822,6 +1902,7 @@
         <select id="taskTypeInput">
           <option value="daily" data-i18n="daily_short">每日</option>
           <option value="weekly" data-i18n="weekly_short">每周</option>
+          <option value="monthly" data-i18n="monthly_short">每月</option>
           <option value="once" data-i18n="once_short">一次性</option>
         </select>
       </div>
@@ -3857,6 +3938,10 @@ function completeTask(taskId, partial = false) {
     toast(T('这周已经完成过啦~', 'You already finished this week ~'), '🌼');
     return;
   }
+  if (task.type === 'monthly' && typeof isTaskDoneThisMonth === 'function' && isTaskDoneThisMonth(taskId)) {
+    toast(T('这个月已经完成过啦~', 'You already finished this month ~'), '🌼');
+    return;
+  }
   state.completions[t].push(taskId);
   const diffRewards = [5, 15, 30, 60];
   let xp = diffRewards[task.difficulty - 1];
@@ -4822,6 +4907,28 @@ function isTaskDoneThisWeek(taskId) {
   }
   return false;
 }
+/* Monthly tasks reset on the 1st of each calendar month (local time). */
+function monthDateKeysForToday() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const mIdx = now.getMonth();
+  const daysInMonth = new Date(y, mIdx + 1, 0).getDate();
+  const keys = [];
+  for (let i = 1; i <= daysInMonth; i++) {
+    const m = String(mIdx + 1).padStart(2, '0');
+    const day = String(i).padStart(2, '0');
+    keys.push(`${y}-${m}-${day}`);
+  }
+  return keys;
+}
+function isTaskDoneThisMonth(taskId) {
+  const keys = monthDateKeysForToday();
+  for (const k of keys) {
+    const ids = state.completions && state.completions[k];
+    if (ids && ids.includes(taskId)) return true;
+  }
+  return false;
+}
 /* A task is overdue when it has a dueDate set and today's date is strictly
    after that date. dueDate strings are YYYY-MM-DD so string comparison works. */
 function isTaskOverdue(task) {
@@ -4897,7 +5004,7 @@ function renderTasks() {
   const pinnedTaskIds = state.pinnedTaskIds || [];
   renderQuestTagBar();
   const dimIcons = { career: '💼', charm: '💖', wealth: '💰', wisdom: '📚', health: '🌿' };
-  const diffTags = getLang()==='en' ? ['🌱 Tiny','🌿 Normal','🌳 Challenge','🌲 Big'] : ['🌱小事', '🌿一般', '🌳挑战', '🌲大事'];
+  const diffTags = getLang()==='en' ? ['Tiny','Normal','Challenge','Big'] : ['小事', '一般', '挑战', '大事'];
   const dimNames = getLang()==='en'
     ? {career:'Career',charm:'Charm',wealth:'Wealth',wisdom:'Wisdom',health:'Health'}
     : {career:'事业',charm:'魅力',wealth:'财富',wisdom:'智慧',health:'健康'};
@@ -4906,6 +5013,7 @@ function renderTasks() {
   // A task counts as "done" differently depending on its cadence.
   const isTaskDone = (task) => {
     if (task.type === 'weekly') return isTaskDoneThisWeek(task.id);
+    if (task.type === 'monthly') return isTaskDoneThisMonth(task.id);
     return todayDone.includes(task.id);
   };
 
@@ -4919,7 +5027,7 @@ function renderTasks() {
     const isMust = mustDoTodayIds.includes(task.id);
     const overdue = isTaskOverdue(task);
     // Recurring overdue tasks get hatched/dimmed styling on the task page; one-time overdue tasks get pale red.
-    const isRecurring = (task.type === 'daily' || task.type === 'weekly');
+    const isRecurring = (task.type === 'daily' || task.type === 'weekly' || task.type === 'monthly');
     const overdueClass = overdue
       ? (isRecurring ? 'expired-recurring' : 'overdue')
       : '';
@@ -4949,6 +5057,7 @@ function renderTasks() {
       metaTags += `<span class="tag">${diffTags[task.difficulty - 1]}</span>`;
       if (task.type === 'once')   metaTags += `<span class="tag">${T('一次性','One-time')}</span>`;
       if (task.type === 'weekly') metaTags += `<span class="tag">${T('每周','Weekly')}</span>`;
+      if (task.type === 'monthly') metaTags += `<span class="tag">${T('每月','Monthly')}</span>`;
       if (isPinned) metaTags += `<span class="tag">${T('📌 置顶中','📌 Pinned')}</span>`;
       if (isMust)   metaTags += `<span class="tag">${T('⭐ 今天必做','⭐ Must today')}</span>`;
       if (task.dueDate) {
@@ -5023,6 +5132,7 @@ function renderTasks() {
     const overdue = isTaskOverdue(task);
     if (task.type === 'daily')  return !overdue;
     if (task.type === 'weekly') return !overdue && !isTaskDoneThisWeek(task.id);
+    if (task.type === 'monthly') return !overdue && !isTaskDoneThisMonth(task.id);
     if (task.type === 'once')   return !todayDone.includes(task.id);
     return false;
   });
@@ -5076,14 +5186,14 @@ function renderTasks() {
   // Progress counter: include both daily and weekly "active" tasks so the
   // ratio still reflects what the user is committing to today. Expired
   // recurring tasks drop out so the ratio doesn't get stuck at <100%.
-  const activeTasks = state.tasks.filter(t2 => (t2.type === 'daily' || t2.type === 'weekly') && !isTaskOverdue(t2));
+  const activeTasks = state.tasks.filter(t2 => (t2.type === 'daily' || t2.type === 'weekly' || t2.type === 'monthly') && !isTaskOverdue(t2));
   const doneCount = activeTasks.filter(t2 => isTaskDone(t2)).length;
   document.getElementById('todayProgress').textContent = `${doneCount}/${activeTasks.length}`;
 
   const passes = (task) => taskMatchesQuestFilter(task, mustDoTodayIds, pinnedTaskIds);
   const onceTasks    = sortByDone(state.tasks.filter(task => task.type === 'once' && passes(task)));
   // Weekly tasks live with daily on the task page under the 每日/定期 section.
-  const dailyTasks   = sortByDone(state.tasks.filter(task => (task.type === 'daily' || task.type === 'weekly') && passes(task)));
+  const dailyTasks   = sortByDone(state.tasks.filter(task => (task.type === 'daily' || task.type === 'weekly' || task.type === 'monthly') && passes(task)));
   const filterActive = _questTagFilter.size > 0;
 
   const rowWithDelete = (task) => `
@@ -5110,6 +5220,7 @@ function startTaskPartial(id) {
   if (state.partialStarts[t].includes(id)) return; // already started
   if (state.completions[t] && state.completions[t].includes(id)) return; // already done
   if (task.type === 'weekly' && typeof isTaskDoneThisWeek === 'function' && isTaskDoneThisWeek(id)) return; // done this week
+  if (task.type === 'monthly' && typeof isTaskDoneThisMonth === 'function' && isTaskDoneThisMonth(id)) return; // done this month
   // Grant half reward immediately.
   const diffRewards = [5, 15, 30, 60];
   let xp = Math.floor((diffRewards[task.difficulty - 1] || 0) * 0.5);
@@ -5664,16 +5775,16 @@ function saveTask() {
    outdoors — five per row. Keeping these fixed means users don't have
    to hunt for an emoji on their keyboard. */
 const SHOP_ICON_OPTIONS = [
-  '🎬','🎵','📺','🎮','📱',
-  '📖','🎧','🎤','🎹','🎨',
-  '🍰','🍦','🍫','🍪','🍩',
-  '🍕','🍜','🍣','☕','🍵',
-  '🍷','🍺','🍸','🥤','🧋',
-  '🛁','💆','💅','🧖','😴',
-  '🌸','🌷','🌿','🕯','🧘',
-  '🛍','👗','💄','📚','🎁',
-  '🎀','💝','💎','🧸','✨',
-  '🏖','🌅','🚶','🧺','🎉',
+  '🌼','🌷','🌸','🌺','🌻',
+  '🌹','🌲','🌿','🍀','🍃',
+  '🍰','🍪','🍫','🍮','🍩',
+  '🥤','🍵','☕','🍼','🍯',
+  '🍓','🍒','🍑','🍊','🍋',
+  '🎨','🎵','🎶','🎹','📖',
+  '🎧','🎬','📷','🎮','🧶',
+  '🛏','🛋','🛍','👗','👒',
+  '🧸','🧣','🕯','💫','✨',
+  '🎈','🎉','🎁','💌','💕',
 ];
 function renderShopIconPicker(selected) {
   const host = document.getElementById('shopIconPicker');
@@ -5731,12 +5842,12 @@ function renamePet() {
 /* ============ Language toggle ============ */
 const I18N_MAP = {
   app_title: { zh: '习惯小花园', en: 'Habit Garden' },
-  tab_home: { zh: '🏡 主页', en: '🏡 Home' },
-  tab_tasks: { zh: '📋 任务', en: '📋 Tasks' },
-  tab_shop: { zh: '🎁 许愿店', en: '🎁 Wishes' },
-  tab_cards: { zh: '🃏 卡册', en: '🃏 Cards' },
+  tab_home: { zh: '⌂ 主页', en: '⌂ Home' },
+  tab_tasks: { zh: '✎ 任务', en: '✎ Tasks' },
+  tab_shop: { zh: '❀ 许愿店', en: '❀ Wishes' },
+  tab_cards: { zh: '◈ 卡册', en: '◈ Cards' },
   tab_focus: { zh: '⏱ 专注', en: '⏱ Focus' },
-  tab_log: { zh: '🌙 记录', en: '🌙 Log' },
+  tab_log: { zh: '☾ 记录', en: '☾ Log' },
   pat_btn: { zh: '🫶 摸摸它', en: '🫶 Pat pat' },
   stars: { zh: '星星', en: 'Stars' },
   streak: { zh: '连续', en: 'Streak' },
@@ -5822,13 +5933,14 @@ const I18N_MAP = {
   task_name_ph: { zh: '例如：读书 30 分钟', en: 'e.g. Read for 30 minutes' },
   task_dim: { zh: '所属维度（决定加哪项能力）', en: 'Dimension (which stat it grows)' },
   task_diff: { zh: '难度（决定奖励）', en: 'Difficulty (decides reward)' },
-  d1: { zh: '🌱 小事 (+5)', en: '🌱 Tiny (+5)' },
-  d2: { zh: '🌿 一般 (+15)', en: '🌿 Normal (+15)' },
-  d3: { zh: '🌳 挑战 (+30)', en: '🌳 Challenge (+30)' },
-  d4: { zh: '🌲 大事 (+60)', en: '🌲 Big deal (+60)' },
+  d1: { zh: '小事 (+5)', en: 'Tiny (+5)' },
+  d2: { zh: '一般 (+15)', en: 'Normal (+15)' },
+  d3: { zh: '挑战 (+30)', en: 'Challenge (+30)' },
+  d4: { zh: '大事 (+60)', en: 'Big deal (+60)' },
   task_type: { zh: '类型', en: 'Type' },
   daily_short: { zh: '每日', en: 'Daily' },
   weekly_short: { zh: '每周', en: 'Weekly' },
+  monthly_short: { zh: '每月', en: 'Monthly' },
   once_short: { zh: '一次性', en: 'One-time' },
   task_ease: { zh: '现在看起来有多容易开始？', en: 'How easy does it look to start?' },
   ease_easy: { zh: '很容易开始', en: 'Very easy to start' },
