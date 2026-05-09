@@ -529,6 +529,68 @@
   .task-list::-webkit-scrollbar { width: 6px; }
   .task-list::-webkit-scrollbar-thumb { background: var(--cream-2); border-radius: 3px; }
 
+  /* Journal calendar: a tiny month box (max ~220px wide) — sits unobtrusively
+     above the entry list. Days with entries get a soft peach fill; the
+     selected day gets a deeper highlight. */
+  .journal-cal {
+    margin: 4px 0 12px;
+    max-width: 220px;
+    padding: 8px 10px;
+    background: var(--cream-2, #f5ede0);
+    border-radius: 12px;
+  }
+  .journal-cal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px; gap: 6px;
+  }
+  .journal-cal-title {
+    font-family: 'Fraunces', serif; font-size: 12px; color: var(--ink, #4a4438);
+    font-weight: 600;
+  }
+  .journal-cal-nav {
+    display: flex; gap: 2px; align-items: center;
+  }
+  .journal-cal-nav button {
+    background: transparent; border: none; border-radius: 6px;
+    width: 18px; height: 18px; cursor: pointer; color: var(--ink-soft);
+    font-family: inherit; font-size: 12px; line-height: 1;
+    padding: 0;
+  }
+  .journal-cal-nav button:hover { background: var(--peach); color: #fff; }
+  .journal-cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
+  }
+  .journal-cal-dow {
+    text-align: center; font-size: 9px; color: var(--ink-soft);
+    padding: 1px 0; opacity: 0.7;
+  }
+  .journal-cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--ink-soft); border-radius: 4px;
+    background: transparent; cursor: default; position: relative;
+    border: 1px solid transparent;
+  }
+  .journal-cal-day.has-entries {
+    background: rgba(232, 168, 124, 0.28); color: var(--ink, #4a4438);
+    cursor: pointer; font-weight: 600;
+  }
+  .journal-cal-day.has-entries:hover { background: rgba(232, 168, 124, 0.5); }
+  .journal-cal-day.is-selected {
+    background: var(--peach, #e8a87c); color: #fff;
+    border-color: var(--peach-deep, #d18860);
+  }
+  .journal-cal-day.is-today {
+    border-color: rgba(150, 130, 100, 0.45);
+  }
+  .journal-cal-day.is-empty { color: rgba(150, 130, 100, 0.3); }
+  .journal-cal-clear {
+    margin-top: 6px; font-size: 10px;
+    background: transparent; color: var(--ink-soft);
+    border: 1px dashed rgba(150, 130, 100, 0.3); border-radius: 999px;
+    padding: 2px 8px; cursor: pointer; font-family: inherit;
+    width: 100%;
+  }
+
   /* Journal entries on the 记录 tab reuse the task-list scroll pattern so
      the page doesn't grow unbounded once many notes accumulate. */
   #journalList {
@@ -754,6 +816,29 @@
     margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 12px;
+  }
+  .cards-counter {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(150, 130, 100, 0.10);
+    color: var(--ink-soft, #6b6253);
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+  }
+  .cards-empty {
+    grid-column: 1 / -1;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--ink-soft, #6b6253);
+    font-size: 15px;
+    background: rgba(255, 250, 240, 0.4);
+    border: 1px dashed rgba(150, 130, 100, 0.25);
+    border-radius: 14px;
   }
   .section-title {
     font-family: 'Fraunces', serif;
@@ -1569,7 +1654,11 @@
   <section class="view" id="view-cards">
     <div class="section-title">
       <span data-i18n="cards_title">卡片收藏册</span>
+      <span id="cardsCounter" class="cards-counter"></span>
       <span class="sub" data-i18n="cards_sub">完成任务有机率掉落 · 稀有卡让人更有力量</span>
+    </div>
+    <div style="margin: -4px 0 8px;">
+      <button class="quick-btn" id="cardsShowAllToggle" onclick="toggleCardsShowAll()" data-i18n="cards_show_all">显示全部图鉴</button>
     </div>
     <div style="margin: 16px 0 20px; display: flex; gap: 10px; flex-wrap: wrap;">
       <button class="quick-btn" data-i18n="f_all" onclick="filterCards('all')">全部</button>
@@ -1684,6 +1773,9 @@
 
     <div class="panel" style="margin-top: 20px;">
       <div class="panel-title" data-i18n="past_notes">写过的话</div>
+      <!-- Calendar overview: days with entries get a warm dot/fill;
+           clicking a day filters the list below to just that day. -->
+      <div id="journalCalendar" class="journal-cal"></div>
       <!-- Tag filter bar: clicking a tag ORs it into the active filter; clicking
            again removes it. Empty = show everything. -->
       <div id="journalTagBar" style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 12px; min-height:0;"></div>
@@ -2310,6 +2402,142 @@ const CARD_POOL = [
   { id:'he11',dim:'health', name:'灵芝仙翁',   icon:'🍄', rarity:'epic' },
   { id:'he12',dim:'health', name:'金莲之心',   icon:'💠', rarity:'epic' },
   { id:'he13',dim:'health', name:'不老仙草',   icon:'🌟', rarity:'legendary' },
+  // ========== EXPANDED POOL (aquatic / alpine / tropical / subtropical / extinct ancient) ==========
+  // ----- CAREER 事业 expansion -----
+  { id:'ca14', dim:'career', name:'苔藓打字员', icon:'🌱', rarity:'common' },
+  { id:'ca15', dim:'career', name:'仙人球小工', icon:'🌵', rarity:'common' },
+  { id:'ca16', dim:'career', name:'灯心草小员', icon:'🌾', rarity:'common' },
+  { id:'ca17', dim:'career', name:'高山矮松', icon:'🌲', rarity:'common' },
+  { id:'ca18', dim:'career', name:'椰子员工', icon:'🥥', rarity:'common' },
+  { id:'ca19', dim:'career', name:'茶树职员', icon:'🍵', rarity:'common' },
+  { id:'ca20', dim:'career', name:'蕨叶秘书', icon:'🌿', rarity:'common' },
+  { id:'ca21', dim:'career', name:'水稻员工', icon:'🌾', rarity:'common' },
+  { id:'ca22', dim:'career', name:'雪绒草小工', icon:'❄️', rarity:'common' },
+  { id:'ca23', dim:'career', name:'椒草助理', icon:'🪴', rarity:'common' },
+  { id:'ca24', dim:'career', name:'矮柳工头', icon:'🌳', rarity:'rare' },
+  { id:'ca25', dim:'career', name:'红树林队长', icon:'🌳', rarity:'rare' },
+  { id:'ca26', dim:'career', name:'巨柱仙人掌', icon:'🌵', rarity:'rare' },
+  { id:'ca27', dim:'career', name:'银桦经理', icon:'🌲', rarity:'rare' },
+  { id:'ca28', dim:'career', name:'棕榈监工', icon:'🌴', rarity:'rare' },
+  { id:'ca29', dim:'career', name:'雪松工程师', icon:'🌲', rarity:'rare' },
+  { id:'ca30', dim:'career', name:'兰花助教', icon:'🌸', rarity:'rare' },
+  { id:'ca31', dim:'career', name:'芭蕉队长', icon:'🌴', rarity:'rare' },
+  { id:'ca32', dim:'career', name:'龙血树元老', icon:'🌳', rarity:'epic' },
+  { id:'ca33', dim:'career', name:'红杉总裁', icon:'🌲', rarity:'epic' },
+  { id:'ca34', dim:'career', name:'椰岛长老', icon:'🌴', rarity:'epic' },
+  { id:'ca35', dim:'career', name:'银杏大师', icon:'🍂', rarity:'epic' },
+  { id:'ca36', dim:'career', name:'雪山苍松', icon:'❄️', rarity:'epic' },
+  { id:'ca37', dim:'career', name:'沙漠玫瑰王', icon:'🥀', rarity:'epic' },
+  { id:'ca38', dim:'career', name:'鳞木巨灵', icon:'🪨', rarity:'legendary' },
+  { id:'ca39', dim:'career', name:'古蕨王者', icon:'🦴', rarity:'legendary' },
+  // ----- CHARM 魅力 expansion -----
+  { id:'ch14', dim:'charm', name:'水葫芦少女', icon:'🌊', rarity:'common' },
+  { id:'ch15', dim:'charm', name:'苔玉小姐', icon:'🪨', rarity:'common' },
+  { id:'ch16', dim:'charm', name:'雏菊女郎', icon:'🌼', rarity:'common' },
+  { id:'ch17', dim:'charm', name:'蓝莲少女', icon:'💙', rarity:'common' },
+  { id:'ch18', dim:'charm', name:'扶桑小姐', icon:'🌺', rarity:'common' },
+  { id:'ch19', dim:'charm', name:'山茶花女', icon:'🌸', rarity:'common' },
+  { id:'ch20', dim:'charm', name:'紫罗兰少女', icon:'💜', rarity:'common' },
+  { id:'ch21', dim:'charm', name:'雪绒花女', icon:'❄️', rarity:'common' },
+  { id:'ch22', dim:'charm', name:'夜花仙子', icon:'🌺', rarity:'common' },
+  { id:'ch23', dim:'charm', name:'紫薇少女', icon:'💐', rarity:'common' },
+  { id:'ch24', dim:'charm', name:'兰花伶人', icon:'🌸', rarity:'rare' },
+  { id:'ch25', dim:'charm', name:'山茶仙子', icon:'🌺', rarity:'rare' },
+  { id:'ch26', dim:'charm', name:'棉花小娇', icon:'🤍', rarity:'rare' },
+  { id:'ch27', dim:'charm', name:'雪莲圣女', icon:'🤍', rarity:'rare' },
+  { id:'ch28', dim:'charm', name:'绣球花娘', icon:'💠', rarity:'rare' },
+  { id:'ch29', dim:'charm', name:'鸢尾舞姬', icon:'🪻', rarity:'rare' },
+  { id:'ch30', dim:'charm', name:'天堂鸟花', icon:'🦩', rarity:'rare' },
+  { id:'ch31', dim:'charm', name:'山玉兰', icon:'🌼', rarity:'rare' },
+  { id:'ch32', dim:'charm', name:'月光兰皇后', icon:'🌸', rarity:'epic' },
+  { id:'ch33', dim:'charm', name:'雪莲女王', icon:'❄️', rarity:'epic' },
+  { id:'ch34', dim:'charm', name:'千年牡丹', icon:'🌹', rarity:'epic' },
+  { id:'ch35', dim:'charm', name:'古玉兰仙', icon:'🌼', rarity:'epic' },
+  { id:'ch36', dim:'charm', name:'沙漠夜花皇', icon:'🌵', rarity:'epic' },
+  { id:'ch37', dim:'charm', name:'七色绣球', icon:'🌈', rarity:'epic' },
+  { id:'ch38', dim:'charm', name:'灭绝苏铁仙', icon:'🦕', rarity:'legendary' },
+  { id:'ch39', dim:'charm', name:'远古木兰圣', icon:'🌟', rarity:'legendary' },
+  // ----- WEALTH 财富 expansion -----
+  { id:'we14', dim:'wealth', name:'莲藕小贩', icon:'🪷', rarity:'common' },
+  { id:'we15', dim:'wealth', name:'菱角先生', icon:'💎', rarity:'common' },
+  { id:'we16', dim:'wealth', name:'高山红豆', icon:'🟥', rarity:'common' },
+  { id:'we17', dim:'wealth', name:'椰枣商人', icon:'🌴', rarity:'common' },
+  { id:'we18', dim:'wealth', name:'火龙果小弟', icon:'🐉', rarity:'common' },
+  { id:'we19', dim:'wealth', name:'番石榴妹', icon:'🍈', rarity:'common' },
+  { id:'we20', dim:'wealth', name:'杨梅郎', icon:'🔴', rarity:'common' },
+  { id:'we21', dim:'wealth', name:'枇杷店主', icon:'🟡', rarity:'common' },
+  { id:'we22', dim:'wealth', name:'山楂果奶', icon:'🟥', rarity:'common' },
+  { id:'we23', dim:'wealth', name:'椰浆姐', icon:'🥥', rarity:'common' },
+  { id:'we24', dim:'wealth', name:'山竹君', icon:'🟣', rarity:'rare' },
+  { id:'we25', dim:'wealth', name:'榴莲爵爷', icon:'🦔', rarity:'rare' },
+  { id:'we26', dim:'wealth', name:'杏子掌柜', icon:'🟠', rarity:'rare' },
+  { id:'we27', dim:'wealth', name:'高山花椒', icon:'🌶️', rarity:'rare' },
+  { id:'we28', dim:'wealth', name:'甘蔗大亨', icon:'🟩', rarity:'rare' },
+  { id:'we29', dim:'wealth', name:'椰子飞行员', icon:'🥥', rarity:'rare' },
+  { id:'we30', dim:'wealth', name:'板栗银行', icon:'🌰', rarity:'rare' },
+  { id:'we31', dim:'wealth', name:'龙眼绅士', icon:'🟤', rarity:'rare' },
+  { id:'we32', dim:'wealth', name:'黄金莲藕', icon:'🪷', rarity:'epic' },
+  { id:'we33', dim:'wealth', name:'雪山藏红花', icon:'💛', rarity:'epic' },
+  { id:'we34', dim:'wealth', name:'香槟葡萄爵', icon:'🍇', rarity:'epic' },
+  { id:'we35', dim:'wealth', name:'雪梨王国', icon:'🍐', rarity:'epic' },
+  { id:'we36', dim:'wealth', name:'远古巨果灵', icon:'🥝', rarity:'epic' },
+  { id:'we37', dim:'wealth', name:'银杏果长老', icon:'🍂', rarity:'epic' },
+  { id:'we38', dim:'wealth', name:'苏铁宝果灵', icon:'🦕', rarity:'legendary' },
+  { id:'we39', dim:'wealth', name:'古金桂之神', icon:'🌟', rarity:'legendary' },
+  // ----- WISDOM 智慧 expansion -----
+  { id:'wi14', dim:'wisdom', name:'菖蒲学童', icon:'🌾', rarity:'common' },
+  { id:'wi15', dim:'wisdom', name:'高山蓝盆花', icon:'🪻', rarity:'common' },
+  { id:'wi16', dim:'wisdom', name:'香茅小生', icon:'🍋', rarity:'common' },
+  { id:'wi17', dim:'wisdom', name:'罗勒小师妹', icon:'🌿', rarity:'common' },
+  { id:'wi18', dim:'wisdom', name:'薄荷研究生', icon:'🌱', rarity:'common' },
+  { id:'wi19', dim:'wisdom', name:'山姜实习', icon:'🟡', rarity:'common' },
+  { id:'wi20', dim:'wisdom', name:'桂花学徒', icon:'🌼', rarity:'common' },
+  { id:'wi21', dim:'wisdom', name:'蕨叶图书管理员', icon:'📚', rarity:'common' },
+  { id:'wi22', dim:'wisdom', name:'远古木贼小生', icon:'🌾', rarity:'common' },
+  { id:'wi23', dim:'wisdom', name:'苔藓诗人', icon:'🌿', rarity:'common' },
+  { id:'wi24', dim:'wisdom', name:'雪绒草学者', icon:'❄️', rarity:'rare' },
+  { id:'wi25', dim:'wisdom', name:'艾草道长', icon:'🌿', rarity:'rare' },
+  { id:'wi26', dim:'wisdom', name:'沙参博士', icon:'🌾', rarity:'rare' },
+  { id:'wi27', dim:'wisdom', name:'鼠尾草智者', icon:'🌱', rarity:'rare' },
+  { id:'wi28', dim:'wisdom', name:'香叶月桂师', icon:'🍃', rarity:'rare' },
+  { id:'wi29', dim:'wisdom', name:'紫苏教授', icon:'🟣', rarity:'rare' },
+  { id:'wi30', dim:'wisdom', name:'石炭蕨教研', icon:'🌿', rarity:'rare' },
+  { id:'wi31', dim:'wisdom', name:'三七研究员', icon:'🌱', rarity:'rare' },
+  { id:'wi32', dim:'wisdom', name:'雪山虫草仙', icon:'⛰️', rarity:'epic' },
+  { id:'wi33', dim:'wisdom', name:'千年灵芝长老', icon:'🍄', rarity:'epic' },
+  { id:'wi34', dim:'wisdom', name:'龙脑香古师', icon:'🌳', rarity:'epic' },
+  { id:'wi35', dim:'wisdom', name:'银杏古先生', icon:'🍂', rarity:'epic' },
+  { id:'wi36', dim:'wisdom', name:'古玉兰智者', icon:'🌼', rarity:'epic' },
+  { id:'wi37', dim:'wisdom', name:'雪莲典籍', icon:'❄️', rarity:'epic' },
+  { id:'wi38', dim:'wisdom', name:'远古孢子先知', icon:'🦠', rarity:'legendary' },
+  { id:'wi39', dim:'wisdom', name:'灭绝智慧林', icon:'🦴', rarity:'legendary' },
+  // ----- HEALTH 健康 expansion -----
+  { id:'he14', dim:'health', name:'莲藕宝宝', icon:'🪷', rarity:'common' },
+  { id:'he15', dim:'health', name:'水芹小弟', icon:'🌿', rarity:'common' },
+  { id:'he16', dim:'health', name:'高山红景天', icon:'🌹', rarity:'common' },
+  { id:'he17', dim:'health', name:'沙棘小兵', icon:'🟠', rarity:'common' },
+  { id:'he18', dim:'health', name:'椰肉宝宝', icon:'🥥', rarity:'common' },
+  { id:'he19', dim:'health', name:'香蕉护士', icon:'🍌', rarity:'common' },
+  { id:'he20', dim:'health', name:'蓝莓医生', icon:'🫐', rarity:'common' },
+  { id:'he21', dim:'health', name:'罗汉果', icon:'🟢', rarity:'common' },
+  { id:'he22', dim:'health', name:'紫菜大夫', icon:'🟢', rarity:'common' },
+  { id:'he23', dim:'health', name:'山药小姐姐', icon:'🥔', rarity:'common' },
+  { id:'he24', dim:'health', name:'雪山虫草医师', icon:'⛰️', rarity:'rare' },
+  { id:'he25', dim:'health', name:'仙人掌大夫', icon:'🌵', rarity:'rare' },
+  { id:'he26', dim:'health', name:'红毛丹小护', icon:'🍒', rarity:'rare' },
+  { id:'he27', dim:'health', name:'雪梨咳嗽科', icon:'🍐', rarity:'rare' },
+  { id:'he28', dim:'health', name:'蜂蜜柚子姐', icon:'🍯', rarity:'rare' },
+  { id:'he29', dim:'health', name:'黄芪师兄', icon:'🟡', rarity:'rare' },
+  { id:'he30', dim:'health', name:'紫苏医师', icon:'🟣', rarity:'rare' },
+  { id:'he31', dim:'health', name:'何首乌长辈', icon:'🟫', rarity:'rare' },
+  { id:'he32', dim:'health', name:'雪莲圣医', icon:'❄️', rarity:'epic' },
+  { id:'he33', dim:'health', name:'仙人球之心', icon:'🌵', rarity:'epic' },
+  { id:'he34', dim:'health', name:'古银杏药王', icon:'🍂', rarity:'epic' },
+  { id:'he35', dim:'health', name:'远古蕨疗师', icon:'🌿', rarity:'epic' },
+  { id:'he36', dim:'health', name:'龙血树仙医', icon:'🌳', rarity:'epic' },
+  { id:'he37', dim:'health', name:'白桦疗养仙', icon:'🌳', rarity:'epic' },
+  { id:'he38', dim:'health', name:'远古不老树灵', icon:'🌟', rarity:'legendary' },
+  { id:'he39', dim:'health', name:'灭绝苏铁仙草', icon:'🦕', rarity:'legendary' },
 ];
 
 const CARD_NAMES_EN = {
@@ -2338,6 +2566,138 @@ const CARD_NAMES_EN = {
   he6:'Lettuce Guardian', he7:'Doctor Aloe', he8:'Nurse Chamomile', he9:'Mr. Tomato',
   he10:'Water Lily Princess', he11:'Lingzhi Sage', he12:'Golden Lotus Heart',
   he13:'Eternal Spirit Herb',
+
+  // ----- expansion -----
+  ca14:'Moss Typist',
+  ca15:'Cactus Apprentice',
+  ca16:'Rush Worker',
+  ca17:'Mountain Pine',
+  ca18:'Coconut Staffer',
+  ca19:'Tea-Bush Clerk',
+  ca20:'Fern Secretary',
+  ca21:'Rice-Field Hand',
+  ca22:'Edelweiss Worker',
+  ca23:'Peperomia Aide',
+  ca24:'Alpine Willow Forewoman',
+  ca25:'Mangrove Captain',
+  ca26:'Saguaro Director',
+  ca27:'Silver Birch Manager',
+  ca28:'Palm Foreman',
+  ca29:'Cedar Engineer',
+  ca30:'Orchid TA',
+  ca31:'Banana-Leaf Captain',
+  ca32:'Dragoneye Elder',
+  ca33:'Sequoia CEO',
+  ca34:'Atoll Patriarch',
+  ca35:'Ginkgo Master',
+  ca36:'Snowpeak Pine',
+  ca37:'Desert Rose Sovereign',
+  ca38:'Sigillaria Titan',
+  ca39:'Ancient Fern Sovereign',
+  ch14:'Water Hyacinth Maiden',
+  ch15:'Mossball Miss',
+  ch16:'Daisy Lady',
+  ch17:'Blue Lotus Girl',
+  ch18:'Hibiscus Miss',
+  ch19:'Camellia Lady',
+  ch20:'Violet Maiden',
+  ch21:'Edelweiss Maiden',
+  ch22:'Night Bloom Fairy',
+  ch23:'Crepe Myrtle Girl',
+  ch24:'Orchid Performer',
+  ch25:'Camellia Fairy',
+  ch26:'Cotton Charmer',
+  ch27:'Snow Lotus Saint',
+  ch28:'Hydrangea Bride',
+  ch29:'Iris Dancer',
+  ch30:'Bird of Paradise',
+  ch31:'Mountain Magnolia',
+  ch32:'Moonlight Orchid Queen',
+  ch33:'Snow Lotus Queen',
+  ch34:'Thousand-Year Peony',
+  ch35:'Ancient Magnolia Spirit',
+  ch36:'Desert Night Queen',
+  ch37:'Seven-Color Hydrangea',
+  ch38:'Extinct Cycad Spirit',
+  ch39:'Primordial Magnolia Saint',
+  we14:'Lotus Root Vendor',
+  we15:'Water Caltrop Sir',
+  we16:'Alpine Red Bean',
+  we17:'Date Palm Trader',
+  we18:'Dragon Fruit Lad',
+  we19:'Guava Sister',
+  we20:'Bayberry Lad',
+  we21:'Loquat Owner',
+  we22:'Hawthorn Granny',
+  we23:'Coconut Cream Sis',
+  we24:'Mangosteen Mister',
+  we25:'Durian Earl',
+  we26:'Apricot Boss',
+  we27:'Alpine Sichuan Pepper',
+  we28:'Sugarcane Tycoon',
+  we29:'Coconut Aviator',
+  we30:'Chestnut Banker',
+  we31:'Longan Gentleman',
+  we32:'Golden Lotus Root',
+  we33:'Snow-Mountain Saffron',
+  we34:'Champagne Grape Earl',
+  we35:'Snow-Pear Kingdom',
+  we36:'Ancient Megafruit Spirit',
+  we37:'Ginkgo Nut Elder',
+  we38:'Cycad Treasure Spirit',
+  we39:'Primordial Osmanthus God',
+  wi14:'Calamus Pupil',
+  wi15:'Alpine Scabious',
+  wi16:'Citronella Lad',
+  wi17:'Basil Junior',
+  wi18:'Mint Postgrad',
+  wi19:'Mountain Ginger Intern',
+  wi20:'Osmanthus Apprentice',
+  wi21:'Fern Librarian',
+  wi22:'Horsetail Lad',
+  wi23:'Moss Poet',
+  wi24:'Edelweiss Scholar',
+  wi25:'Mugwort Daoist',
+  wi26:'Adenophora Doctor',
+  wi27:'Sage Sage',
+  wi28:'Bay Laurel Master',
+  wi29:'Perilla Professor',
+  wi30:'Carbon-Era Fern Faculty',
+  wi31:'Notoginseng Researcher',
+  wi32:'Cordyceps Hermit',
+  wi33:'Millennial Lingzhi Elder',
+  wi34:'Dipterocarp Sage',
+  wi35:'Elder Ginkgo Sir',
+  wi36:'Ancient Magnolia Sage',
+  wi37:'Snow Lotus Codex',
+  wi38:'Spore Oracle of Old',
+  wi39:'Vanished Wisdom Forest',
+  he14:'Lotus Root Babe',
+  he15:'Water Celery Lad',
+  he16:'Alpine Rhodiola',
+  he17:'Sea Buckthorn Cadet',
+  he18:'Coconut Pulp Babe',
+  he19:'Banana Nurse',
+  he20:'Blueberry Doctor',
+  he21:'Monkfruit',
+  he22:'Nori Physician',
+  he23:'Yam Big Sister',
+  he24:'Cordyceps Medic',
+  he25:'Cactus M.D.',
+  he26:'Rambutan Nurse',
+  he27:'Snow-Pear Cough Specialist',
+  he28:'Honey Pomelo Sis',
+  he29:'Astragalus Senior',
+  he30:'Perilla Physician',
+  he31:'Polygonum Elder',
+  he32:'Snow Lotus Healer',
+  he33:'Cactus Heart Saint',
+  he34:'Ginkgo Pharmacopeia',
+  he35:'Carbon-Age Fern Healer',
+  he36:'Dragonblood Physician',
+  he37:'Birch Sanitarium Spirit',
+  he38:'Primeval Tree Spirit',
+  he39:'Lost Cycad Tonic',
 };
 function getCardName(c){ return getLang()==='en' ? (CARD_NAMES_EN[c.id] || c.name) : c.name; }
 
@@ -2485,6 +2845,138 @@ const CARD_LORE = {
          personaZh:'外表柔软，内核坚定。', personaEn:'Soft shell, diamond core.' },
   he13:{ factZh:'传说中的"不老仙草"来自各地民间故事，是一种对健康长寿的美好寄托。', factEn:'The "eternal spirit herb" comes from folklore — a lovely wish for lasting health.',
          personaZh:'每次出现都只说一句：慢慢来。', personaEn:'Appears rarely. Only ever says: "Slow down."' },
+
+  // ===== EXPANSION (aquatic / alpine / tropical / subtropical / ancient) =====
+  ca14:{ factZh:'苔藓不开花，靠孢子繁殖。', factEn:'Mosses don\'t flower; they spread by spores.', personaZh:'默默打字，从不抢话。', personaEn:'Types quietly, never interrupts.' },
+  ca15:{ factZh:'仙人掌的刺其实是退化的叶子。', factEn:'Cactus spines are modified leaves.', personaZh:'工位永远干净——没人敢靠近。', personaEn:'Tidy desk — no one dares come close.' },
+  ca16:{ factZh:'灯心草曾被用来做油灯灯芯。', factEn:'Rushes were once used as lamp wicks.', personaZh:'加班到深夜，自己点灯。', personaEn:'Stays late, lights its own lamp.' },
+  ca17:{ factZh:'高山松能在 4000 米的稀薄空气中生存。', factEn:'Bristlecone pines thrive above 4000 m.', personaZh:'不爱说话，但每年都涨一圈年轮。', personaEn:'Quiet, but adds a fresh ring every year.' },
+  ca18:{ factZh:'椰子能漂洋过海传播——天然的快递箱。', factEn:'Coconuts drift across oceans — natural shipping crates.', personaZh:'出差爱漂海，说这是远程办公。', personaEn:'Calls drifting at sea "remote work."' },
+  ca19:{ factZh:'茶树喜欢山地雾气，海拔越高香气越细。', factEn:'Tea trees love mountain mist; higher = finer aroma.', personaZh:'永远在续杯，永远在写报表。', personaEn:'Always topping up tea, always closing tickets.' },
+  ca20:{ factZh:'蕨类比恐龙还古老，靠孢子繁殖。', factEn:'Ferns predate dinosaurs and reproduce by spores.', personaZh:'比公司任何人都资深。', personaEn:'More senior than HR, by a few hundred million years.' },
+  ca21:{ factZh:'水稻一生大约要"喝"自己重量数千倍的水。', factEn:'A rice plant drinks thousands of times its weight in water.', personaZh:'弯腰最深的那个，是谷子最饱满的。', personaEn:'Bows lowest when its grains are heaviest.' },
+  ca22:{ factZh:'雪绒草的"绒毛"能反射强烈紫外线。', factEn:'Edelweiss "fur" reflects intense UV at altitude.', personaZh:'自带防晒，安全帽都省了。', personaEn:'Skips sunscreen — built-in UV armor.' },
+  ca23:{ factZh:'椒草厚叶子能存水，几周不浇也活。', factEn:'Peperomia\'s thick leaves store water for weeks.', personaZh:'老板出差也活得好，自给自足型。', personaEn:'Self-sufficient: thrives even when the boss is away.' },
+  ca24:{ factZh:'高山矮柳贴地生长，对抗强风。', factEn:'Alpine willows hug the ground to dodge wind.', personaZh:'不抬头开会，但效率最高。', personaEn:'Never raises her head in meetings, gets the most done.' },
+  ca25:{ factZh:'红树林的根能把咸海水过滤成淡水。', factEn:'Mangroves filter salty seawater into fresh.', personaZh:'在最难处理的客户里也能扎根。', personaEn:'Roots even in the saltiest clients.' },
+  ca26:{ factZh:'巨柱仙人掌能活 200 年。', factEn:'Saguaros can live 200 years.', personaZh:'入职以来从没请过假。', personaEn:'Hasn\'t taken a sick day in a century.' },
+  ca27:{ factZh:'银桦白皮反射阳光，保护树干。', factEn:'Silver birch bark reflects sunlight to keep its trunk cool.', personaZh:'永远穿白衬衫，永远干净利落。', personaEn:'Always in a crisp white shirt.' },
+  ca28:{ factZh:'棕榈树没有年轮，靠叶痕计岁。', factEn:'Palms have no rings; they age via leaf scars.', personaZh:'不计较年龄，只看战绩。', personaEn:'Doesn\'t care about age — only output.' },
+  ca29:{ factZh:'雪松木在水下千年不腐。', factEn:'Cedarwood lasts thousands of years underwater.', personaZh:'再湿的项目都顶得住。', personaEn:'Holds up no matter how wet the project gets.' },
+  ca30:{ factZh:'兰花有约 25,000 个野生物种。', factEn:'Orchids form one of the biggest plant families with ~25,000 species.', personaZh:'永远在备课，永远不迟到。', personaEn:'Always over-prepared, never late.' },
+  ca31:{ factZh:'香蕉"树"其实是巨大的草本植物。', factEn:'The banana "tree" is actually a giant herb.', personaZh:'看起来像树，实际上是草根出身。', personaEn:'Looks like a tree; deeply grassroots.' },
+  ca32:{ factZh:'龙血树的红色树脂能存放千年。', factEn:'Dragon\'s-blood resin can last a thousand years.', personaZh:'沉默不语，但流着滚烫的血。', personaEn:'Quiet outside, hot resin inside.' },
+  ca33:{ factZh:'加州红杉是世界最高的树，可达 115 米。', factEn:'Coast redwoods can reach 115 m — the tallest trees on Earth.', personaZh:'永远站在远处，但看到每个人。', personaEn:'Stands far away, sees everyone.' },
+  ca34:{ factZh:'一颗椰子能漂浮 100 多天。', factEn:'A coconut can float for 100+ days.', personaZh:'退休了？没有，他还在创业。', personaEn:'Retired? Never — still founding new colonies.' },
+  ca35:{ factZh:'银杏是 2 亿年前的"活化石"。', factEn:'Ginkgo is a living fossil, 200 million years old.', personaZh:'见过太多潮流，已经懒得追了。', personaEn:'Has seen every trend, no longer chases any.' },
+  ca36:{ factZh:'高山针叶树用细小针叶减少水分流失。', factEn:'Alpine conifers use thin needles to lose less water.', personaZh:'不需要鼓励，安静长大。', personaEn:'Needs no praise — grows in silence.' },
+  ca37:{ factZh:'沙漠玫瑰把水储存在膨大的茎里。', factEn:'Desert roses store water in their swollen trunks.', personaZh:'越干旱，越美丽。', personaEn:'The drier the climate, the prettier it grows.' },
+  ca38:{ factZh:'鳞木是 3 亿年前的远古"煤层之父"。', factEn:'Sigillaria fossilized into much of Earth\'s coal 300 Mya ago.', personaZh:'它的工作成果今天还在发电。', personaEn:'Its old work still powers our cities.' },
+  ca39:{ factZh:'石炭纪木贼曾长成 30 米的森林。', factEn:'Carboniferous horsetails once formed 30 m forests.', personaZh:'曾是地球的总工程师。', personaEn:'Was once Earth\'s chief engineer.' },
+  ch14:{ factZh:'水葫芦能在 2 周内将自己复制 10 倍。', factEn:'Water hyacinths can multiply tenfold in two weeks.', personaZh:'朋友圈最热闹的人。', personaEn:'Has the most active group chat.' },
+  ch15:{ factZh:'日本苔玉是用青苔包裹的盆景艺术。', factEn:'Japanese kokedama wraps roots in living moss.', personaZh:'圆滚滚一颗，被抱回家就开心。', personaEn:'Round and rollable, happy to be hugged home.' },
+  ch16:{ factZh:'雏菊在傍晚会闭合花瓣"睡觉"。', factEn:'Daisies close their petals at dusk to sleep.', personaZh:'上半天热情，下半天躺平。', personaEn:'Bright in the morning, horizontal by sundown.' },
+  ch17:{ factZh:'古埃及人崇拜蓝莲花，认为它能带来好梦。', factEn:'Ancient Egyptians revered the blue lotus for sweet dreams.', personaZh:'不爱说话，但梦里全是诗。', personaEn:'Quiet, dreams in poetry.' },
+  ch18:{ factZh:'扶桑一朵花只开一天，傍晚就谢。', factEn:'A hibiscus flower blooms for one day then falls.', personaZh:'活在当下，每天都用力。', personaEn:'Lives only today — fully.' },
+  ch19:{ factZh:'山茶花在中国和日本象征坚毅之美。', factEn:'Camellias symbolize quiet strength in East Asia.', personaZh:'即使下雪也开。', personaEn:'Blooms even in snow.' },
+  ch20:{ factZh:'紫罗兰只在清晨散发香气。', factEn:'Violets release fragrance only at dawn.', personaZh:'把好心情留给早起的人。', personaEn:'Saves her best moods for early risers.' },
+  ch21:{ factZh:'雪绒花是阿尔卑斯的勇气之花。', factEn:'Edelweiss is the Alpine flower of courage.', personaZh:'越冷越美，越高越香。', personaEn:'Lovelier in colder, higher places.' },
+  ch22:{ factZh:'夜间开花的植物常依靠飞蛾授粉。', factEn:'Night-blooming flowers rely on moths for pollination.', personaZh:'别人睡了，她才上场。', personaEn:'Only takes the stage after midnight.' },
+  ch23:{ factZh:'紫薇花期长达百日，又名"百日红"。', factEn:'Crepe myrtle blooms for ~100 days — "hundred-day red."', personaZh:'不懂什么叫淡季。', personaEn:'Doesn\'t know what off-season means.' },
+  ch24:{ factZh:'兰花会模仿雌蜂吸引雄蜂传粉。', factEn:'Some orchids mimic female bees to lure male pollinators.', personaZh:'永远在演，但演得心甘情愿。', personaEn:'Always acting — and loving every minute.' },
+  ch25:{ factZh:'山茶花在花瓣全开时整朵掉落，象征气节。', factEn:'Camellias drop whole — a symbol of integrity in Japan.', personaZh:'离场时也要优雅。', personaEn:'Leaves the stage gracefully, head held high.' },
+  ch26:{ factZh:'棉花其实是一种锦葵科植物的果实。', factEn:'Cotton is the fruit of a mallow-family plant.', personaZh:'软软的笑容收服一切。', personaEn:'Soft smiles disarm everyone.' },
+  ch27:{ factZh:'雪莲长在 4000 米雪线之上。', factEn:'Snow lotus grows above the 4000 m snow line.', personaZh:'在最冷的地方开最暖的花。', personaEn:'Blooms warmest in the coldest place.' },
+  ch28:{ factZh:'绣球花根据土壤酸碱度变色。', factEn:'Hydrangeas change color based on soil pH.', personaZh:'心情写在脸上。', personaEn:'Wears her mood as her color.' },
+  ch29:{ factZh:'鸢尾在希腊神话中是彩虹女神的使者。', factEn:'In Greek myth, Iris was the rainbow goddess\'s messenger.', personaZh:'来去如彩虹。', personaEn:'Arrives like a rainbow.' },
+  ch30:{ factZh:'鹤望兰花形像热带鸟，故名"天堂鸟"。', factEn:'The bird of paradise flower looks like a tropical bird.', personaZh:'永远摆出 C 位。', personaEn:'Always strikes the cover-girl pose.' },
+  ch31:{ factZh:'玉兰是地球最早出现的花之一。', factEn:'Magnolias are among the oldest flowering plants.', personaZh:'古风骨，新审美。', personaEn:'Ancient bones, modern soul.' },
+  ch32:{ factZh:'月光兰能在月光下散发香气吸引特定的蛾。', factEn:'Moonlight orchids release scent under moonlight for specific moths.', personaZh:'不见月光不开口。', personaEn:'Speaks only by moonlight.' },
+  ch33:{ factZh:'高山雪莲一朵需 5–7 年才开。', factEn:'Snow lotus takes 5–7 years to bloom once.', personaZh:'等得久，所以更被记住。', personaEn:'Memorable because she made you wait.' },
+  ch34:{ factZh:'中国洛阳有千年以上的古牡丹。', factEn:'Ancient peonies in Luoyang are over a millennium old.', personaZh:'见过宋代月亮。', personaEn:'Has seen the moon of the Song dynasty.' },
+  ch35:{ factZh:'玉兰化石可追溯至 9500 万年前。', factEn:'Magnolia fossils go back 95 million years.', personaZh:'比蜂蜜还古老的优雅。', personaEn:'Older than honeybees — and sweeter.' },
+  ch36:{ factZh:'月下美人一年只开一夜。', factEn:'Queen of the night blooms one night per year.', personaZh:'想见她？请准备一年。', personaEn:'Want to see her? Reserve a year ahead.' },
+  ch37:{ factZh:'不同酸碱土能让一株绣球同时开多色。', factEn:'Mixed-pH soil can give one hydrangea many colors.', personaZh:'心情多彩，从不重样。', personaEn:'Multicolored moods, never repeats.' },
+  ch38:{ factZh:'苏铁见证了恐龙时代，是最古老的种子植物之一。', factEn:'Cycads watched the dinosaurs — among the oldest seed plants.', personaZh:'是花，但记得没有花的时代。', personaEn:'A flower that remembers a world without flowers.' },
+  ch39:{ factZh:'木兰科是被子植物最早的家族之一。', factEn:'Magnoliaceae is among the earliest angiosperm families.', personaZh:'第一朵被昆虫亲吻的花。', personaEn:'The very first flower a bug ever kissed.' },
+  we14:{ factZh:'莲藕生在淤泥，却带洁白的内心。', factEn:'Lotus roots grow from mud, white at heart.', personaZh:'卖货的从不抱怨地段。', personaEn:'Never complains about the location.' },
+  we15:{ factZh:'菱角生长在水面，外壳坚硬。', factEn:'Water caltrops grow on ponds with hard shells.', personaZh:'表面强硬，里面软糯。', personaEn:'Tough outside, sticky-sweet inside.' },
+  we16:{ factZh:'高山红豆熬汤香气浓郁。', factEn:'Alpine red beans give richer broth.', personaZh:'一锅就让全家来报到。', personaEn:'One pot brings the whole family running.' },
+  we17:{ factZh:'椰枣含糖量可达 70%。', factEn:'Dates can be 70% sugar.', personaZh:'一颗顶一顿早餐。', personaEn:'One date = one breakfast.' },
+  we18:{ factZh:'火龙果其实是仙人掌科的果实。', factEn:'Dragon fruit is actually a cactus fruit.', personaZh:'又酷又可爱，自带特效。', personaEn:'Cool and cute — comes with special effects.' },
+  we19:{ factZh:'番石榴的维生素 C 是橙子的 4 倍。', factEn:'Guava has 4× the vitamin C of orange.', personaZh:'一口下去，元气满满。', personaEn:'One bite = full energy bar.' },
+  we20:{ factZh:'杨梅遇盐水会有小虫游出——天然检验。', factEn:'Bayberries reveal tiny visitors in salt water.', personaZh:'老实说话，从不藏货。', personaEn:'Tells the truth — never hides his stock.' },
+  we21:{ factZh:'枇杷在冬天开花，初夏成熟。', factEn:'Loquats blossom in winter, ripen by summer.', personaZh:'反季营业，行情独门。', personaEn:'Off-season hours: unique market.' },
+  we22:{ factZh:'山楂助消化，是冬天糖葫芦的灵魂。', factEn:'Hawthorns aid digestion — the soul of winter tanghulu.', personaZh:'一口酸甜，把胃叫醒。', personaEn:'One sweet-and-sour bite wakes up your stomach.' },
+  we23:{ factZh:'一颗椰子能产出近 1 升椰水。', factEn:'One coconut yields ~1 L of water.', personaZh:'自带饮料，开会不愁。', personaEn:'Brings her own drink — never goes thirsty.' },
+  we24:{ factZh:'山竹被称为"水果皇后"。', factEn:'Mangosteen is called the queen of fruits.', personaZh:'开口就是甜的承诺。', personaEn:'Every word he says tastes sweet.' },
+  we25:{ factZh:'榴莲是争议最大的水果——爱憎分明。', factEn:'Durian: the most polarizing fruit on Earth.', personaZh:'你要么爱，要么逃。', personaEn:'You either love it or run.' },
+  we26:{ factZh:'一棵杏树能结果 60 年。', factEn:'An apricot tree can fruit for 60 years.', personaZh:'老字号，从不打折。', personaEn:'Heritage brand — never on sale.' },
+  we27:{ factZh:'花椒能让舌头微麻，是味觉魔术。', factEn:'Sichuan pepper makes your tongue tingle — flavor magic.', personaZh:'一抓就让全场记住他。', personaEn:'One pinch and the whole room remembers.' },
+  we28:{ factZh:'甘蔗一生储存的糖能酿出几十瓶朗姆。', factEn:'One cane stores enough sugar for many bottles of rum.', personaZh:'别问年薪，问他甜度。', personaEn:'Don\'t ask his salary — ask his sweetness.' },
+  we29:{ factZh:'椰子能漂海远行 10000 公里。', factEn:'A coconut can drift 10000 km on currents.', personaZh:'永远在外汇市场，永远在路上。', personaEn:'Always trading currencies — always on the move.' },
+  we30:{ factZh:'一棵老板栗树年产数十公斤。', factEn:'An old chestnut tree yields tens of kilos a year.', personaZh:'利息是嗨的——可以现烤。', personaEn:'Pays interest fresh out of the oven.' },
+  we31:{ factZh:'龙眼晒干就是桂圆，能补心安神。', factEn:'Dried longan ("guiyuan") soothes the heart.', personaZh:'不慌不忙，慢慢生财。', personaEn:'Gets rich slowly and calmly.' },
+  we32:{ factZh:'古代莲藕被视为吉祥物。', factEn:'Lotus roots have long been auspicious symbols.', personaZh:'出泥不染，赚钱不脏。', personaEn:'Rises clean from mud — and money.' },
+  we33:{ factZh:'藏红花每克贵过黄金。', factEn:'Saffron can cost more per gram than gold.', personaZh:'一抹胜千金。', personaEn:'One pinch outshines gold.' },
+  we34:{ factZh:'古老葡萄园树龄过百，产量极少。', factEn:'Heritage vineyards: century-old vines, tiny yields.', personaZh:'从不参加促销活动。', personaEn:'Never appears at flash sales.' },
+  we35:{ factZh:'高山雪梨皮薄汁多。', factEn:'Alpine snow pears are thin-skinned and juicy.', personaZh:'冷库出身，自带高级感。', personaEn:'Born of cold storage — naturally premium.' },
+  we36:{ factZh:'一些远古水果体积超大，至今只见化石。', factEn:'Some ancient megaflora fruits are known only from fossils.', personaZh:'一颗就够吃一周。', personaEn:'One fruit feeds a week.' },
+  we37:{ factZh:'银杏果壳能保存上千年。', factEn:'Ginkgo nuts can keep their shells for centuries.', personaZh:'抗通胀的硬通货。', personaEn:'Inflation-proof hard currency.' },
+  we38:{ factZh:'苏铁的种子在恐龙时代就已存在。', factEn:'Cycad seeds existed in the age of dinosaurs.', personaZh:'收藏级，不轻易出手。', personaEn:'Museum-grade — rarely sold.' },
+  we39:{ factZh:'桂花在中国传说中长在月宫。', factEn:'Osmanthus, by Chinese legend, grows on the moon.', personaZh:'月宫信用卡，无限额度。', personaEn:'Has the moon-palace card. Limit: infinite.' },
+  wi14:{ factZh:'菖蒲常植于溪畔，被认为辟邪。', factEn:'Calamus, planted by streams, was thought to ward off ill fortune.', personaZh:'上学路上踩水洼。', personaEn:'Splashes through puddles on the way to school.' },
+  wi15:{ factZh:'高山植物花期短，授粉迅速。', factEn:'Alpine flowers bloom briefly and pollinate fast.', personaZh:'一天的课能记一辈子。', personaEn:'One day\'s lesson, remembered for life.' },
+  wi16:{ factZh:'香茅能驱蚊，是夏夜的小帮手。', factEn:'Citronella repels mosquitoes — a summer ally.', personaZh:'蚊子都躲他。', personaEn:'Even mosquitoes avoid him.' },
+  wi17:{ factZh:'罗勒在地中海被尊称"草中王"。', factEn:'Basil is the king of herbs in the Mediterranean.', personaZh:'地中海式聪明。', personaEn:'Mediterranean-clever.' },
+  wi18:{ factZh:'薄荷的清凉感来自薄荷醇激活冷觉受体。', factEn:'Mint cools you by hijacking your cold receptors.', personaZh:'笑话能把全场冻一秒。', personaEn:'Jokes that freeze the room for a beat.' },
+  wi19:{ factZh:'山姜是亚热带林下常见的香料植物。', factEn:'Mountain ginger flourishes in subtropical understories.', personaZh:'安静做事，香气藏不住。', personaEn:'Quiet, but his aroma gives him away.' },
+  wi20:{ factZh:'桂花能闻出秋天。', factEn:'Osmanthus is the smell of autumn.', personaZh:'一句话点醒整个秋天。', personaEn:'One word can summon autumn.' },
+  wi21:{ factZh:'蕨叶是地球最早的植物图书馆封面。', factEn:'Ferns: nature\'s first book covers.', personaZh:'整理化石比 PDF 更称职。', personaEn:'Better at filing fossils than PDFs.' },
+  wi22:{ factZh:'木贼是 3 亿年前活下来的活化石。', factEn:'Horsetails are 300-million-year-old living fossils.', personaZh:'上课不走神。', personaEn:'Never daydreams in class.' },
+  wi23:{ factZh:'苔藓没有真正的根，靠空气湿度活。', factEn:'Mosses lack true roots; they sip moisture from air.', personaZh:'写诗不需要纸。', personaEn:'Writes poems on air.' },
+  wi24:{ factZh:'雪绒花的绒毛是抵抗紫外线的盔甲。', factEn:'Edelweiss "fur" is its UV armor.', personaZh:'写论文用的是高山日光。', personaEn:'Drafts papers under high-altitude sun.' },
+  wi25:{ factZh:'艾草在端午被悬于门前驱邪。', factEn:'Mugwort is hung at doors during Dragon Boat Festival.', personaZh:'香味就是他的咒语。', personaEn:'His chant smells like home.' },
+  wi26:{ factZh:'沙参根能润肺，是中医常用药。', factEn:'Adenophora root soothes lungs in TCM.', personaZh:'答疑像泡茶，慢但准。', personaEn:'Replies as carefully as steeping tea.' },
+  wi27:{ factZh:'鼠尾草学名 Salvia 来自拉丁语"治愈"。', factEn:'Salvia means \'to heal\' in Latin.', personaZh:'名字本身就是处方。', personaEn:'His name is the prescription.' },
+  wi28:{ factZh:'古希腊以月桂叶冠加冕英雄。', factEn:'Greeks crowned heroes with laurel wreaths.', personaZh:'永远把奖让给学生。', personaEn:'Always lets students wear the wreath.' },
+  wi29:{ factZh:'紫苏的紫色来自花青素。', factEn:'Perilla\'s purple comes from anthocyanins.', personaZh:'课件全是高糖警告。', personaEn:'Slides full of "watch your sugar" warnings.' },
+  wi30:{ factZh:'石炭纪森林由巨蕨组成。', factEn:'Carboniferous forests were made of giant ferns.', personaZh:'留校 3 亿年没退休。', personaEn:'Hasn\'t retired in 300 million years.' },
+  wi31:{ factZh:'三七能止血，是中医名药。', factEn:'Notoginseng is a famed hemostatic herb.', personaZh:'实验做到一半不能离开。', personaEn:'Never leaves an experiment half-done.' },
+  wi32:{ factZh:'冬虫夏草是真菌寄生于虫体的奇迹。', factEn:'Cordyceps: a fungus that takes over a caterpillar.', personaZh:'是植物？是动物？是哲学。', personaEn:'Plant? Animal? Or philosophy?' },
+  wi33:{ factZh:'灵芝在汉代被列为上品仙药。', factEn:'Lingzhi was a "supreme herb" in Han dynasty texts.', personaZh:'不收钱，只收时间。', personaEn:'Won\'t take money — only time.' },
+  wi34:{ factZh:'龙脑香树是热带雨林的支柱。', factEn:'Dipterocarps are the giants of tropical rainforests.', personaZh:'一个鼻息能远飘十里。', personaEn:'A single breath travels miles.' },
+  wi35:{ factZh:'银杏能活 3000 年。', factEn:'Ginkgos can live 3000 years.', personaZh:'不信"赶紧学习"。', personaEn:'Doesn\'t believe in cramming.' },
+  wi36:{ factZh:'玉兰的祖先靠甲虫传粉。', factEn:'Magnolia ancestors were pollinated by beetles.', personaZh:'见证过最早的甲虫飞会。', personaEn:'Witnessed the first beetle pollination party.' },
+  wi37:{ factZh:'雪莲在传说中只有得道者才采得到。', factEn:'Folklore: only the wise can pick a snow lotus.', personaZh:'你能见到她，已是认证。', personaEn:'If she lets you see her, you\'ve passed.' },
+  wi38:{ factZh:'孢子是植物最古老的繁殖方式。', factEn:'Spores are the oldest mode of plant reproduction.', personaZh:'在你想到问题前就有答案。', personaEn:'Has the answer before you have the question.' },
+  wi39:{ factZh:'二叠纪末大灭绝带走了 95% 物种。', factEn:'The Permian extinction erased 95% of species.', personaZh:'失去过一切，所以更懂温柔。', personaEn:'Lost everything — so understands gentleness.' },
+  he14:{ factZh:'莲藕富含纤维，养胃。', factEn:'Lotus root is fiber-rich and stomach-friendly.', personaZh:'萌得让你忘记血压。', personaEn:'So cute you forget your stress.' },
+  he15:{ factZh:'水芹清热，可去湿气。', factEn:'Water celery clears heat and damp.', personaZh:'夏天的好朋友。', personaEn:'Best friend of August.' },
+  he16:{ factZh:'红景天能帮助适应高原缺氧。', factEn:'Rhodiola helps the body adapt to high altitude.', personaZh:'上山别忘了带它。', personaEn:'Bring it on every climb.' },
+  he17:{ factZh:'沙棘维生素 C 是柠檬的几十倍。', factEn:'Sea buckthorn has tens of times the vitamin C of lemon.', personaZh:'一颗顶你一周维 C。', personaEn:'One berry covers your week.' },
+  he18:{ factZh:'椰水电解质平衡，是天然运动饮料。', factEn:'Coconut water rivals sports drinks for electrolytes.', personaZh:'跑步前来一杯。', personaEn:'One sip before every run.' },
+  he19:{ factZh:'香蕉富含钾，帮你防抽筋。', factEn:'Bananas are potassium-rich — anti-cramp.', personaZh:'总在你抽筋前出现。', personaEn:'Shows up before your calf does.' },
+  he20:{ factZh:'蓝莓花青素保护视力。', factEn:'Blueberry anthocyanins protect eyes.', personaZh:'永远比眼科医生先到。', personaEn:'Always one step ahead of the optometrist.' },
+  he21:{ factZh:'罗汉果含天然零卡甜素。', factEn:'Monkfruit gives natural calorie-free sweetness.', personaZh:'甜得没负罪感。', personaEn:'Sweet without the guilt.' },
+  he22:{ factZh:'紫菜含丰富碘，护甲状腺。', factEn:'Nori is iodine-rich for thyroid health.', personaZh:'包饭也包健康。', personaEn:'Wraps your rice and your health.' },
+  he23:{ factZh:'山药滋补脾胃，黏液保护肠道。', factEn:'Yam mucilage soothes the gut.', personaZh:'下班回家就给你下厨。', personaEn:'Cooks for you the moment she\'s home.' },
+  he24:{ factZh:'冬虫夏草是稀有的高山滋补药材。', factEn:'Cordyceps is a rare alpine tonic.', personaZh:'看病要预约 5 年。', personaEn:'Booking takes 5 years.' },
+  he25:{ factZh:'仙人掌肉富含水分和粘多糖。', factEn:'Cactus pulp is full of water and mucopolysaccharides.', personaZh:'干旱时全靠他出诊。', personaEn:'Makes house calls during droughts.' },
+  he26:{ factZh:'红毛丹富含抗氧化剂。', factEn:'Rambutan is loaded with antioxidants.', personaZh:'看见病人就笑。', personaEn:'Smiles at every patient.' },
+  he27:{ factZh:'川贝雪梨润肺止咳。', factEn:'Sichuan snow pear soothes coughs.', personaZh:'一碗下去，整夜安睡。', personaEn:'One bowl = one quiet night.' },
+  he28:{ factZh:'柚子皮黄酮护血管。', factEn:'Pomelo peel flavonoids protect vessels.', personaZh:'冬天她最受欢迎。', personaEn:'The winter MVP.' },
+  he29:{ factZh:'黄芪扶正气，是中药"补气王"。', factEn:'Astragalus is a "qi-boosting king" in TCM.', personaZh:'让你今天也站得直。', personaEn:'Helps you stand straight today.' },
+  he30:{ factZh:'紫苏可解海鲜寒气。', factEn:'Perilla counteracts cold from seafood.', personaZh:'夜宵局必备。', personaEn:'Standard issue for late-night feasts.' },
+  he31:{ factZh:'何首乌据说能"乌发延寿"。', factEn:'Folklore claims it can darken hair and extend life.', personaZh:'染发店的天敌。', personaEn:'Sworn enemy of dye salons.' },
+  he32:{ factZh:'雪莲是雪线之上的神药。', factEn:'Snow lotus: a sacred herb above the snowline.', personaZh:'一年只看 3 个病人。', personaEn:'Sees only three patients a year.' },
+  he33:{ factZh:'仙人掌花蜜能治脱水。', factEn:'Cactus nectar treats dehydration.', personaZh:'沙漠里的最后一杯水。', personaEn:'The last cup of water in the desert.' },
+  he34:{ factZh:'银杏叶提取物可改善血流。', factEn:'Ginkgo extracts improve circulation.', personaZh:'三千年的处方都备好。', personaEn:'Has prescriptions from 3000 years ago.' },
+  he35:{ factZh:'古蕨化石中常见药用同源植物。', factEn:'Pharma-relevant cousins appear in ancient fern fossils.', personaZh:'见过石器时代的伤口。', personaEn:'Has dressed wounds since the Stone Age.' },
+  he36:{ factZh:'龙血树脂可止血。', factEn:'Dragonblood resin staunches bleeding.', personaZh:'见血就微笑。', personaEn:'Smiles when he sees a wound.' },
+  he37:{ factZh:'白桦汁含天然抗炎成分。', factEn:'Birch sap has natural anti-inflammatory compounds.', personaZh:'春天就供应免费。', personaEn:'Free supply in spring.' },
+  he38:{ factZh:'传说远古树灵能延寿无限。', factEn:'Folklore: ancient tree spirits grant boundless life.', personaZh:'唯一的处方：慢一点。', personaEn:'Only ever prescribes "slow down."' },
+  he39:{ factZh:'远古苏铁含珍贵药源。', factEn:'Some extinct cycads stored prized compounds.', personaZh:'失传，但仍治愈。', personaEn:'Lost — but still healing somehow.' },
 };
 
 function maybeDropCard(difficulty) {
@@ -5011,9 +5503,21 @@ function renderTasks() {
   const diffXp = [5, 15, 30, 60];
 
   // A task counts as "done" differently depending on its cadence.
+  // For one-time tasks, "done" means completed on ANY date (not just today)
+  // — otherwise a once task completed yesterday reappears today if the
+  // day-roll sweep failed to clear it (e.g. across cloud-sync timing).
+  const isOnceDoneEver = (taskId) => {
+    if (!state.completions) return false;
+    for (const k in state.completions) {
+      const ids = state.completions[k];
+      if (Array.isArray(ids) && ids.includes(taskId)) return true;
+    }
+    return false;
+  };
   const isTaskDone = (task) => {
     if (task.type === 'weekly') return isTaskDoneThisWeek(task.id);
     if (task.type === 'monthly') return isTaskDoneThisMonth(task.id);
+    if (task.type === 'once') return isOnceDoneEver(task.id);
     return todayDone.includes(task.id);
   };
 
@@ -5133,7 +5637,7 @@ function renderTasks() {
     if (task.type === 'daily')  return !overdue;
     if (task.type === 'weekly') return !overdue && !isTaskDoneThisWeek(task.id);
     if (task.type === 'monthly') return !overdue && !isTaskDoneThisMonth(task.id);
-    if (task.type === 'once')   return !todayDone.includes(task.id);
+    if (task.type === 'once')   return !isOnceDoneEver(task.id);
     return false;
   });
   const rankedHomeIncomplete = sortForHome(homeCandidates).filter(task => !isTaskDone(task));
@@ -5335,11 +5839,28 @@ function deleteShopItem(id) {
 }
 
 let cardFilter = 'all';
+let cardsShowAll = false;
 function filterCards(f) { cardFilter = f; renderCards(); }
+function toggleCardsShowAll() {
+  cardsShowAll = !cardsShowAll;
+  const btn = document.getElementById('cardsShowAllToggle');
+  if (btn) btn.textContent = cardsShowAll
+    ? T('只显示已收集', 'Only show collected')
+    : T('显示全部图鉴', 'Show full catalog');
+  renderCards();
+}
 
 function renderCards() {
   let pool = CARD_POOL;
   if (cardFilter !== 'all') pool = pool.filter(c => c.dim === cardFilter);
+  // Update collected/total counter (respects current dimension filter)
+  const collected = pool.filter(c => (state.cards[c.id] || 0) > 0).length;
+  const total = pool.length;
+  const counterEl = document.getElementById('cardsCounter');
+  if (counterEl) counterEl.textContent = `${collected} / ${total}`;
+  // By default hide unrevealed slots — only show cards the user has dropped.
+  // The "显示全部图鉴" toggle reveals locked slots like a wishlist.
+  if (!cardsShowAll) pool = pool.filter(c => (state.cards[c.id] || 0) > 0);
   // Pin unlocked cards to the top so already-collected plants are easy to
   // revisit. Within each group (unlocked / locked) keep the original order
   // defined in CARD_POOL by using a stable sort with the original index
@@ -5352,6 +5873,15 @@ function renderCards() {
       return a.i - b.i;
     })
     .map(x => x.c);
+  // Empty-state copy when the user has nothing yet and is in "collected only" mode.
+  if (pool.length === 0 && !cardsShowAll) {
+    document.getElementById('cardsGrid').innerHTML = `
+      <div class="cards-empty">
+        <div style="font-size:42px;margin-bottom:10px;">🌱</div>
+        <div>${T('还没有掉落的卡片。完成任务，慢慢攒齐图鉴吧～', 'No cards yet. Finish tasks to start filling your catalog.')}</div>
+      </div>`;
+    return;
+  }
   const html = pool.map(c => {
     const count = state.cards[c.id] || 0;
     const locked = count === 0;
@@ -5401,6 +5931,68 @@ function closeCardDetail(){
 /* Set of currently-active journal tag filters. Empty = show everything.
    Each click on a tag toggles its membership; multiple active tags OR together. */
 let _journalTagFilter = new Set();
+/* Calendar state for the 写过的话 calendar:
+   - _journalCalMonth: the month currently displayed in the grid (Date pinned to day 1)
+   - _journalDateFilter: 'YYYY-MM-DD' string when a day is selected, null = all days */
+let _journalCalMonth = (() => { const d = new Date(); d.setDate(1); return d; })();
+let _journalDateFilter = null;
+function journalShiftMonth(delta){
+  const d = new Date(_journalCalMonth);
+  d.setMonth(d.getMonth() + delta);
+  d.setDate(1);
+  _journalCalMonth = d;
+  renderJournalCalendar();
+}
+function journalSelectDate(dateStr){
+  _journalDateFilter = (_journalDateFilter === dateStr) ? null : dateStr;
+  renderJournal();
+}
+function journalClearDate(){ _journalDateFilter = null; renderJournal(); }
+function renderJournalCalendar(){
+  const el = document.getElementById('journalCalendar');
+  if (!el) return;
+  const en = getLang() === 'en';
+  // Tally entries by date.
+  const counts = {};
+  state.journal.forEach(j => { if (j && j.date) counts[j.date] = (counts[j.date] || 0) + 1; });
+  const y = _journalCalMonth.getFullYear();
+  const m = _journalCalMonth.getMonth();
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay(); // 0 = Sun
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const todayKey = todayStr();
+  const monthLabel = en
+    ? first.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+    : `${y} 年 ${m + 1} 月`;
+  const dows = en ? ['S','M','T','W','T','F','S'] : ['日','一','二','三','四','五','六'];
+  let html = `
+    <div class="journal-cal-head">
+      <div class="journal-cal-title">${monthLabel}</div>
+      <div class="journal-cal-nav">
+        <button onclick="journalShiftMonth(-1)" title="${en?'Prev':'上月'}">‹</button>
+        <button onclick="journalShiftMonth(1)" title="${en?'Next':'下月'}">›</button>
+      </div>
+    </div>
+    <div class="journal-cal-grid">`;
+  html += dows.map(d => `<div class="journal-cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < startDow; i++) html += `<div class="journal-cal-day"></div>`;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const has = counts[key] > 0;
+    const cls = ['journal-cal-day'];
+    if (has) cls.push('has-entries'); else cls.push('is-empty');
+    if (key === todayKey) cls.push('is-today');
+    if (key === _journalDateFilter) cls.push('is-selected');
+    const onclick = has ? `onclick="journalSelectDate('${key}')"` : '';
+    const titleAttr = has ? `title="${counts[key]} ${en ? (counts[key]===1?'entry':'entries') : '条记录'}"` : '';
+    html += `<div class="${cls.join(' ')}" ${onclick} ${titleAttr}>${day}</div>`;
+  }
+  html += `</div>`;
+  if (_journalDateFilter) {
+    html += `<button class="journal-cal-clear" onclick="journalClearDate()">${en ? 'Show all days' : '显示全部日期'} · ${_journalDateFilter}</button>`;
+  }
+  el.innerHTML = html;
+}
 function toggleJournalTagFilter(tag){
   if (_journalTagFilter.has(tag)) _journalTagFilter.delete(tag);
   else _journalTagFilter.add(tag);
@@ -5449,11 +6041,20 @@ function renderJournal() {
     }
   }
 
-  // OR filter: entry matches if it has ANY of the active tags. Empty = show all.
-  const filterActive = _journalTagFilter.size > 0;
-  const filtered = filterActive
-    ? state.journal.filter(j => (Array.isArray(j.tags) ? j.tags : []).some(t => _journalTagFilter.has(t)))
-    : state.journal;
+  // Render the month calendar above the list (highlights days with entries).
+  renderJournalCalendar();
+
+  // OR filter on tags + AND filter on selected date.
+  const tagFilterActive = _journalTagFilter.size > 0;
+  const dateFilterActive = !!_journalDateFilter;
+  const filterActive = tagFilterActive || dateFilterActive;
+  let filtered = state.journal;
+  if (tagFilterActive) {
+    filtered = filtered.filter(j => (Array.isArray(j.tags) ? j.tags : []).some(t => _journalTagFilter.has(t)));
+  }
+  if (dateFilterActive) {
+    filtered = filtered.filter(j => j.date === _journalDateFilter);
+  }
 
   const html = filtered.slice(0, 20).map(j => {
     const tags = Array.isArray(j.tags) ? j.tags : [];
@@ -5629,23 +6230,22 @@ function renderSleepRose(range){
     return `<text x="${cx + 4}" y="${cy - rr + 3}" font-size="9" fill="#b8a088">${v}</text>`;
   }).join('');
 
-  // Each petal is a rounded teardrop: a quadratic arc from center out to
-  // the tip and back, slightly fatter mid-way. We use a simple path.
+  // Each petal is a 90° wedge so the four petals tile the full circle without
+  // overlapping. Outer radius is proportional to the tier's count; the wedge
+  // is drawn as a pie slice (center → arc → center) using SVG's A command.
+  const sectorHalf = Math.PI / 4; // 45° on each side of the petal axis
   const petalPaths = petals.map(p => {
     const len = (p.count / maxCount) * rMax;
     if (len < 2) return '';
     const a = (p.angle * Math.PI) / 180;
-    const tipX = cx + Math.cos(a) * len;
-    const tipY = cy + Math.sin(a) * len;
-    // Two side control points offset perpendicular to the petal axis.
-    const half = len * 0.45;
-    const perp = a + Math.PI / 2;
-    const leftX  = cx + Math.cos(perp) * half - Math.cos(a) * (len*0.2);
-    const leftY  = cy + Math.sin(perp) * half - Math.sin(a) * (len*0.2);
-    const rightX = cx - Math.cos(perp) * half - Math.cos(a) * (len*0.2);
-    const rightY = cy - Math.sin(perp) * half - Math.sin(a) * (len*0.2);
-    const d = `M ${cx} ${cy} Q ${leftX.toFixed(1)} ${leftY.toFixed(1)} ${tipX.toFixed(1)} ${tipY.toFixed(1)} Q ${rightX.toFixed(1)} ${rightY.toFixed(1)} ${cx} ${cy} Z`;
-    return `<path d="${d}" fill="${p.color}" fill-opacity="0.55" stroke="${p.color}" stroke-width="1.2"/>`;
+    const a0 = a - sectorHalf;
+    const a1 = a + sectorHalf;
+    const x0 = cx + Math.cos(a0) * len;
+    const y0 = cy + Math.sin(a0) * len;
+    const x1 = cx + Math.cos(a1) * len;
+    const y1 = cy + Math.sin(a1) * len;
+    const d = `M ${cx} ${cy} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${len} ${len} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z`;
+    return `<path d="${d}" fill="${p.color}" fill-opacity="0.6" stroke="${p.color}" stroke-width="1.2" stroke-linejoin="round"/>`;
   }).join('');
 
   // Labels placed just outside each petal's direction.
@@ -5893,6 +6493,8 @@ const I18N_MAP = {
   filter_clear: { zh: '清除筛选', en: 'Clear filters' },
   filter_no_match: { zh: '没有匹配这些标签的任务', en: 'No tasks match these tags' },
   cards_sub: { zh: '完成任务有机率掉落 · 稀有卡让人更有力量', en: 'Completing tasks may drop a card \u00b7 rare ones feel extra magical' },
+  cards_show_all: { zh: '显示全部图鉴', en: 'Show full catalog' },
+  cards_show_collected: { zh: '只显示已收集', en: 'Only show collected' },
   f_all: { zh: '全部', en: 'All' },
   dim_career: { zh: '💼 事业', en: '💼 Career' },
   dim_charm: { zh: '💖 魅力', en: '💖 Charm' },
