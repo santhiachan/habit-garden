@@ -74,21 +74,22 @@
     letter-spacing: -0.5px;
     color: var(--moss-deep);
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
   }
 
   .logo-icon {
     display: inline-block;
-    width: 40px;
-    height: 40px;
-    transform: translateY(8px);
-    animation: logoBloom 4s ease-in-out infinite;
+    width: 120px;
+    height: 120px;
+    transform: translateY(0);
+    animation: logoBloom 5s ease-in-out infinite;
   }
   .logo-icon svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .logo-icon img { width: 100%; height: 100%; display: block; object-fit: contain; image-rendering: pixelated; image-rendering: crisp-edges; }
   @keyframes logoBloom {
-    0%, 100% { transform: translateY(8px) rotate(-2deg); }
-    50%      { transform: translateY(6px) rotate(3deg); }
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-2px) rotate(2deg); }
   }
 
   .logo-sub {
@@ -97,6 +98,22 @@
     color: var(--peach-deep);
     font-weight: 400;
   }
+
+  /* Title art (习惯小花园 pixel-art hand-drawn) is rendered as an image
+     so it stays faithful to the reference — the small flowers and vine
+     decorations on 惯 and 园 don't exist in any font. EN locale falls
+     back to plain text. */
+  .logo-title-art {
+    height: 64px;
+    width: auto;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    margin-left: -8px; /* tighten the gap to the icon */
+  }
+  .logo-text-fallback { display: none; }
+  html[lang="en"] .logo-title-art { display: none; }
+  html[lang="en"] .logo-text-fallback { display: block; }
 
   .date-badge {
     background: white;
@@ -367,51 +384,76 @@
   }
 
   /* ============ Wish-shop icon picker (replaces free-text emoji input) ============ */
+  /* Hand-drawn pixel-art icon set: 5 themed rows extracted from the
+     reference sheet. Tiles already carry their own pastel bg, so the
+     picker stays neutral and lets each tile speak for itself. */
   .shop-icon-picker {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
-    max-height: 240px;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    max-height: 360px;
     overflow-y: auto;
     padding: 10px;
     background: var(--cream);
     border-radius: 14px;
     border: 1.5px solid var(--cream-2);
   }
+  .shop-icon-cat-label {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    align-self: start;
+    justify-self: start;
+    margin: 4px 0 0 2px;
+  }
+  .shop-icon-cat-label.cat-life  { background: #e7f0d8; color: #5a7a3e; }
+  .shop-icon-cat-label.cat-study { background: #d8e6ec; color: #2f5d75; }
+  .shop-icon-cat-label.cat-sport { background: #f3dcd9; color: #8a4a4a; }
+  .shop-icon-cat-label.cat-hobby { background: #ddd6e8; color: #5a4f7a; }
+  .shop-icon-cat-label.cat-mood  { background: #f3e6c8; color: #7a5a30; }
   .shop-icon-opt {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    line-height: 1;
-    background: #fff;
-    border-radius: 14px;
+    /* Square tile: padding-top:100% reserves height equal to width.
+       aspect-ratio alone wasn't enforcing row height in CSS Grid here —
+       the auto-rows collapsed to ~30px and adjacent rows overlapped
+       by ~100px. position:relative + absolute img is the classic robust
+       fix that works regardless of the grid's auto-row sizing. */
+    position: relative;
+    background: transparent;
+    border-radius: 12px;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
     user-select: none;
-    box-shadow: 0 1px 0 rgba(61,53,39,0.04);
-    /* Slightly soften emoji saturation for a cozier, Morandi-ish feel */
-    filter: saturate(0.78) brightness(1.02) contrast(0.96);
+    overflow: hidden;
+    padding: 0;
   }
-  /* Rotate through warm/dopamine pastel tints so the grid feels playful but cohesive */
-  .shop-icon-opt:nth-child(5n+1) { background: #fdf1e3; }
-  .shop-icon-opt:nth-child(5n+2) { background: #f7e8ee; }
-  .shop-icon-opt:nth-child(5n+3) { background: #ecf2e4; }
-  .shop-icon-opt:nth-child(5n+4) { background: #eaf1f4; }
-  .shop-icon-opt:nth-child(5n)   { background: #f3ecf7; }
+  .shop-icon-opt::before {
+    content: '';
+    display: block;
+    padding-top: 100%;
+  }
+  .shop-icon-opt img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    pointer-events: none;
+  }
   .shop-icon-opt:hover {
-    transform: scale(1.12) rotate(-2deg);
+    transform: scale(1.10) rotate(-2deg);
     border-color: var(--butter);
     box-shadow: 0 3px 0 rgba(61,53,39,0.08);
-    filter: saturate(0.92) brightness(1.04);
   }
   .shop-icon-opt.selected {
     border-color: var(--moss);
-    background: linear-gradient(135deg, rgba(122,155,110,0.22), rgba(243,211,136,0.18)) !important;
+    background: linear-gradient(135deg, rgba(122,155,110,0.22), rgba(243,211,136,0.18));
     box-shadow: 0 3px 0 rgba(122,155,110,0.18);
-    filter: saturate(0.95);
   }
   .shop-icon-picker::-webkit-scrollbar { width: 6px; }
   .shop-icon-picker::-webkit-scrollbar-thumb { background: var(--cream-2); border-radius: 3px; }
@@ -1349,6 +1391,8 @@
   @media (max-width: 600px) {
     .app { padding: 16px 14px 100px; }
     .logo { font-size: 26px; }
+    .logo-icon { width: 84px; height: 84px; }
+    .logo-title-art { height: 48px; }
     .section-title { font-size: 22px; }
     .tab { font-size: 13px; padding: 10px 12px; min-width: 70px; }
     .pet-card, .panel { padding: 20px; }
@@ -1431,28 +1475,16 @@
   <header class="header">
     <div class="logo">
       <span class="logo-icon" aria-hidden="true">
-        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-          <!-- tiny mossy leaf tucked behind the flower -->
-          <ellipse cx="7" cy="30" rx="5.5" ry="3" fill="#7a9b6e" transform="rotate(-30 7 30)"/>
-          <ellipse cx="7" cy="30" rx="5.5" ry="3" fill="none" stroke="#4a6b47" stroke-width="0.8" transform="rotate(-30 7 30)"/>
-          <!-- 5 peach petals arranged around the center -->
-          <g>
-            <circle cx="20" cy="9.5"  r="7" fill="#f2a78d"/>
-            <circle cx="28.5" cy="16" r="7" fill="#f2a78d"/>
-            <circle cx="25"   cy="27" r="7" fill="#f2a78d"/>
-            <circle cx="15"   cy="27" r="7" fill="#f2a78d"/>
-            <circle cx="11.5" cy="16" r="7" fill="#f2a78d"/>
-          </g>
-          <!-- warm butter center -->
-          <circle cx="20" cy="19" r="5.8" fill="#f3d388"/>
-          <circle cx="20" cy="19" r="5.8" fill="none" stroke="#d88671" stroke-width="0.8" opacity="0.5"/>
-          <!-- tiny highlight for cuteness -->
-          <circle cx="18" cy="17.2" r="1.6" fill="#fff" opacity="0.75"/>
-        </svg>
+        <!-- Watercolor circular logo: pre-processed PNG with a feathered alpha
+             edge so the disc fades softly into whatever cream background it sits on. -->
+        <img src="assets/logo-habit-circle.png" alt="Habit Garden"/>
       </span>
       <div>
-        <span data-i18n="app_title">习惯小花园</span>
-        <div class="logo-sub">a garden for your better self 🌱</div>
+        <img class="logo-title-art" src="assets/logo-title.png" alt="习惯小花园 · a garden for your better self"/>
+        <div class="logo-text-fallback">
+          <span data-i18n="app_title">习惯小花园</span>
+          <div class="logo-sub">a garden for your better self</div>
+        </div>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -1589,55 +1621,10 @@
         <span class="sub" data-i18n="shop_intro">给努力一个正当的出口。用星星换取后，请无罪恶地享受吧</span>
       </div>
       <div style="display: flex; align-items: center; gap: 14px;">
-        <!-- Upright wishing bottle filled with colorful stars -->
-        <svg class="wish-bottle" viewBox="0 0 100 120" width="80" height="96" aria-hidden="true">
-          <defs>
-            <linearGradient id="wbGlass" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#cfe7ec" stop-opacity="0.55"/>
-              <stop offset="60%" stop-color="#a9cbd8" stop-opacity="0.45"/>
-              <stop offset="100%" stop-color="#7ba3b5" stop-opacity="0.4"/>
-            </linearGradient>
-            <clipPath id="wbBodyClip">
-              <!-- inner clip path: matches bottle body interior -->
-              <path d="M22 42 Q22 36 28 33 L34 30 Q36 28 36 24 L36 18 Q36 16 38 16 L62 16 Q64 16 64 18 L64 24 Q64 28 66 30 L72 33 Q78 36 78 42 L78 100 Q78 108 70 108 L30 108 Q22 108 22 100 Z"/>
-            </clipPath>
-          </defs>
-          <!-- soft halo behind bottle -->
-          <ellipse cx="50" cy="108" rx="34" ry="6" fill="#f3d388" opacity="0.35"/>
-          <!-- bottle body (upright, chubby) -->
-          <path d="M22 42 Q22 36 28 33 L34 30 Q36 28 36 24 L36 18 Q36 16 38 16 L62 16 Q64 16 64 18 L64 24 Q64 28 66 30 L72 33 Q78 36 78 42 L78 100 Q78 108 70 108 L30 108 Q22 108 22 100 Z"
-                fill="url(#wbGlass)" stroke="#3d3527" stroke-width="2" stroke-linejoin="round"/>
-          <!-- cork on top -->
-          <rect x="36" y="8" width="28" height="10" rx="2" fill="#d4b896" stroke="#3d3527" stroke-width="2"/>
-          <!-- bottle lip ring -->
-          <line x1="36" y1="18" x2="64" y2="18" stroke="#3d3527" stroke-width="1.5" opacity="0.55"/>
-          <!-- colorful stars inside the bottle -->
-          <g clip-path="url(#wbBodyClip)">
-            <!-- pile of stars at the bottom -->
-            <path d="M34 92 L36.5 97 L42 98 L37.5 101.5 L39 107 L34 104 L29 107 L30.5 101.5 L26 98 L31.5 97 Z" fill="#f2a78d" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
-            <path d="M50 88 L52.5 93 L58 94 L53.5 97.5 L55 103 L50 100 L45 103 L46.5 97.5 L42 94 L47.5 93 Z" fill="#f5c66b" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
-            <path d="M66 92 L68.5 97 L74 98 L69.5 101.5 L71 107 L66 104 L61 107 L62.5 101.5 L58 98 L63.5 97 Z" fill="#a8c97a" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
-            <path d="M40 78 L42 82 L46.5 82.8 L43 86 L44 90.5 L40 88 L36 90.5 L37 86 L33.5 82.8 L38 82 Z" fill="#c4b5d9" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
-            <path d="M60 78 L62 82 L66.5 82.8 L63 86 L64 90.5 L60 88 L56 90.5 L57 86 L53.5 82.8 L58 82 Z" fill="#e8a5a5" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
-            <path d="M50 70 L51.6 73.5 L55.4 74.2 L52.5 77 L53.3 80.8 L50 79 L46.7 80.8 L47.5 77 L44.6 74.2 L48.4 73.5 Z" fill="#9bc4d1" stroke="#3d3527" stroke-width="0.8" stroke-linejoin="round"/>
-            <!-- floating stars higher up -->
-            <path d="M36 60 L37.2 62.6 L40 63 L37.8 65 L38.4 67.8 L36 66.4 L33.6 67.8 L34.2 65 L32 63 L34.8 62.6 Z" fill="#f5c66b" stroke="#3d3527" stroke-width="0.7" stroke-linejoin="round"/>
-            <path d="M62 56 L63.2 58.6 L66 59 L63.8 61 L64.4 63.8 L62 62.4 L59.6 63.8 L60.2 61 L58 59 L60.8 58.6 Z" fill="#f2a78d" stroke="#3d3527" stroke-width="0.7" stroke-linejoin="round"/>
-            <circle cx="48" cy="52" r="1.6" fill="#c4b5d9"/>
-            <circle cx="56" cy="44" r="1.4" fill="#a8c97a"/>
-            <circle cx="40" cy="42" r="1.2" fill="#e8a5a5"/>
-          </g>
-          <!-- highlight on glass -->
-          <path d="M28 46 Q26 60 28 78" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.7"/>
-          <path d="M32 50 L32 56" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
-          <!-- floating sparkles around bottle -->
-          <g opacity="0.85">
-            <path d="M10 30 L11.5 33.5 L15 35 L11.5 36.5 L10 40 L8.5 36.5 L5 35 L8.5 33.5 Z" fill="#f2a78d"/>
-            <circle cx="92" cy="24" r="2" fill="#c4b5d9"/>
-            <path d="M88 96 L89 98.5 L91.5 99.5 L89 100.5 L88 103 L87 100.5 L84.5 99.5 L87 98.5 Z" fill="#7a9b6e" opacity="0.8"/>
-            <circle cx="14" cy="78" r="1.8" fill="#e8a5a5"/>
-          </g>
-        </svg>
+        <!-- Pixel-art wishing jar (cork-stopped bottle of pastel stars).
+             Background was knocked out and saved as a transparent PNG. -->
+        <img class="wish-bottle" src="assets/wish-jar.png" alt="" aria-hidden="true"
+             style="width:96px; height:96px; image-rendering: pixelated; image-rendering: crisp-edges;"/>
         <div style="font-size: 20px; font-weight: 600; color: var(--peach-deep); font-family: 'Fraunces', serif;">
           ✨ <span id="shopStars">0</span> <span data-i18n="stars_unit">颗星</span>
         </div>
@@ -2033,7 +2020,7 @@
     </div>
     <div class="form-group">
       <label data-i18n="reward_icon">选一个图标</label>
-      <input type="hidden" id="shopIconInput" value="🎁">
+      <input type="hidden" id="shopIconInput" value="r3c9">
       <div id="shopIconPicker" class="shop-icon-picker"></div>
     </div>
     <div class="form-row">
@@ -3079,20 +3066,13 @@ function getPetSvg(stageIdx, mood = 'happy') {
 }
 
 function drawMysteryBox(){
-  return `<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
-    <rect x="60" y="90" width="120" height="100" rx="8" fill="#e8b896" stroke="#b4805a" stroke-width="2.5"/>
-    <rect x="50" y="78" width="140" height="22" rx="5" fill="#d69876" stroke="#b4805a" stroke-width="2.5"/>
-    <rect x="113" y="80" width="14" height="110" fill="#c9584a"/>
-    <path d="M 120 80 Q 100 50 85 62 Q 78 72 100 82 Q 115 80 120 80 Q 125 80 140 82 Q 162 72 155 62 Q 140 50 120 80 Z" fill="#c9584a" stroke="#8e3a30" stroke-width="1.5"/>
-    <circle cx="120" cy="80" r="4" fill="#8e3a30"/>
-    <text x="120" y="148" text-anchor="middle" font-size="42" fill="#8e3a30" font-family="serif" font-weight="bold">?</text>
-    <g opacity="0.7">
-      <circle cx="45" cy="60" r="2.5" fill="#f3d388"/>
-      <circle cx="195" cy="50" r="3" fill="#f2a78d"/>
-      <circle cx="205" cy="140" r="2" fill="#a9cbd8"/>
-      <circle cx="40" cy="160" r="2.5" fill="#c4b5d9"/>
-    </g>
-  </svg>`;
+  // Pixel-art "PLANT BLIND BOX" illustration (user-supplied PNG, transparent bg).
+  // Pixelated rendering keeps the bitmap edges crisp instead of being smoothed
+  // into mush by the browser when scaled up from its native size.
+  return `<img src="assets/blindbox.png" alt="Plant Blind Box"
+    width="240" height="240"
+    style="display:block; image-rendering: pixelated; image-rendering: crisp-edges;
+           filter: drop-shadow(0 4px 8px rgba(120, 90, 60, 0.18));"/>`;
 }
 
 function drawSeed(species, mood){
@@ -4675,7 +4655,11 @@ function buyShopItem(id, evt) {
   state.shopPurchases[t][id] = used + 1;
   save();
   renderAll();
-  toast(T(`获得：${item.icon} ${item.name}！请无罪恶感地享受 🌷`, `Got: ${item.icon} ${item.name}! Enjoy guilt-free 🌷`), '🎁');
+  // Icon may now be a pixel-art ID (e.g. 'r3c9') — strip those from toast text
+  // since we can't easily inline an image into a toast string. The toast emoji
+  // prefix '🎁' carries enough visual weight on its own.
+  const iconForToast = (item.icon && /^r\d+c\d+$/.test(item.icon)) ? '' : (item.icon ? item.icon + ' ' : '');
+  toast(T(`获得：${iconForToast}${item.name}！请无罪恶感地享受 🌷`, `Got: ${iconForToast}${item.name}! Enjoy guilt-free 🌷`), '🎁');
   try { playCoinDrop(ox, oy, 12); } catch (e) {}
 }
 
@@ -5817,7 +5801,7 @@ function renderShop() {
     const disabled = limitReached || !canAfford;
     return `
       <div class="shop-item">
-        <div class="shop-item-icon">${item.icon}</div>
+        <div class="shop-item-icon">${iconHtml(item.icon, 56)}</div>
         <div class="shop-item-name">${escapeHtml(item.name)}</div>
         <div class="shop-item-desc">${escapeHtml(item.desc || '')}</div>
         <button class="shop-buy-btn" ${disabled ? 'disabled' : ''} data-shop-id="${item.id}" onclick="buyShopItem('${item.id}', event)">
@@ -6370,29 +6354,57 @@ function saveTask() {
   toast(editingTaskId ? T('更新啦~','Updated ~') : T('新任务添加成功！','New task added!'), '✨');
 }
 
-/* Curated icon set for the wish-shop reward picker. Grouped roughly by
-   theme — screen/creative, food & drink, self-care, shopping/gifts,
-   outdoors — five per row. Keeping these fixed means users don't have
-   to hunt for an emoji on their keyboard. */
-const SHOP_ICON_OPTIONS = [
-  '🌼','🌷','🌸','🌺','🌻',
-  '🌹','🌲','🌿','🍀','🍃',
-  '🍰','🍪','🍫','🍮','🍩',
-  '🥤','🍵','☕','🍼','🍯',
-  '🍓','🍒','🍑','🍊','🍋',
-  '🎨','🎵','🎶','🎹','📖',
-  '🎧','🎬','📷','🎮','🧶',
-  '🛏','🛋','🛍','👗','👒',
-  '🧸','🧣','🕯','💫','✨',
-  '🎈','🎉','🎁','💌','💕',
+/* Hand-drawn pixel-art icon set extracted from the reference sheet.
+   Each entry is a tile ID (rRcC) that maps to assets/shop-icons/<id>.png.
+   Grouped into 5 themed categories so the picker shows section labels
+   above each row of tiles — lets users browse by intent (rest, study,
+   move, create, soothe) instead of hunting through a flat grid.
+
+   Legacy reward items saved with emoji icons still render correctly
+   thanks to the fallback branch in iconHtml(). */
+const SHOP_ICON_GROUPS = [
+  { key: 'life',  label: { zh: '生活 & 活动', en: 'Life & Activities' },
+    icons: ['r0c0','r0c1','r0c2','r0c3','r0c4','r0c5','r0c6','r0c7','r0c8','r0c9','r0c10','r0c11','r0c12','r0c13'] },
+  { key: 'study', label: { zh: '学习 & 成长', en: 'Study & Growth' },
+    icons: ['r1c0','r1c1','r1c2','r1c3','r1c4','r1c5','r1c6','r1c7','r1c8','r1c9','r1c10','r1c11','r1c12','r1c13'] },
+  { key: 'sport', label: { zh: '运动 & 健康', en: 'Sport & Health' },
+    icons: ['r2c0','r2c1','r2c2','r2c3','r2c4','r2c5','r2c6','r2c7','r2c8','r2c9','r2c10','r2c11','r2c12','r2c13'] },
+  { key: 'hobby', label: { zh: '兴趣 & 爱好', en: 'Hobbies & Interests' },
+    icons: ['r3c0','r3c1','r3c2','r3c3','r3c4','r3c5','r3c6','r3c7','r3c8','r3c9','r3c10','r3c11','r3c12'] },
+  { key: 'mood',  label: { zh: '心情 & 治愈', en: 'Mood & Healing' },
+    icons: ['r4c0','r4c1','r4c2','r4c3','r4c4','r4c5','r4c6','r4c7','r4c8','r4c9','r4c10','r4c11'] },
 ];
+const DEFAULT_SHOP_ICON = 'r3c9'; // gift box — sensible default for new rewards
+
+/* Render an icon (pixel-art ID like 'r2c5' OR a legacy emoji string).
+   sizePx is the rendered box; img CSS keeps pixel-perfect scaling. */
+function iconHtml(icon, sizePx) {
+  const px = sizePx || 38;
+  if (icon && /^r\d+c\d+$/.test(icon)) {
+    return `<img src="assets/shop-icons/${icon}.png" alt="" `
+      + `style="width:${px}px;height:${px}px;object-fit:contain;`
+      + `image-rendering:pixelated;image-rendering:crisp-edges;" `
+      + `draggable="false"/>`;
+  }
+  // Legacy emoji fallback
+  return `<span style="font-size:${Math.round(px*0.95)}px;line-height:1;">${icon || '🎁'}</span>`;
+}
+
 function renderShopIconPicker(selected) {
   const host = document.getElementById('shopIconPicker');
   if (!host) return;
-  const sel = selected || document.getElementById('shopIconInput').value || '🎁';
-  host.innerHTML = SHOP_ICON_OPTIONS.map(ic =>
-    `<div class="shop-icon-opt ${ic === sel ? 'selected' : ''}" data-icon="${ic}" onclick="selectShopIcon('${ic}')">${ic}</div>`
-  ).join('');
+  const sel = selected || document.getElementById('shopIconInput').value || DEFAULT_SHOP_ICON;
+  const lang = (typeof getLang === 'function') ? getLang() : 'zh';
+  const parts = [];
+  for (const group of SHOP_ICON_GROUPS) {
+    parts.push(`<div class="shop-icon-cat-label cat-${group.key}">${group.label[lang] || group.label.zh}</div>`);
+    for (const id of group.icons) {
+      const isSel = id === sel ? 'selected' : '';
+      parts.push(`<div class="shop-icon-opt ${isSel}" data-icon="${id}" onclick="selectShopIcon('${id}')">`
+        + `<img src="assets/shop-icons/${id}.png" alt="" draggable="false"/></div>`);
+    }
+  }
+  host.innerHTML = parts.join('');
 }
 function selectShopIcon(ic) {
   document.getElementById('shopIconInput').value = ic;
@@ -6404,12 +6416,15 @@ function selectShopIcon(ic) {
 
 function openShopEditModal() {
   document.getElementById('shopNameInput').value = '';
-  document.getElementById('shopIconInput').value = '🎁';
+  document.getElementById('shopIconInput').value = DEFAULT_SHOP_ICON;
   document.getElementById('shopPriceInput').value = 50;
   document.getElementById('shopDescInput').value = '';
   document.getElementById('shopLimitInput').value = 1;
-  renderShopIconPicker('🎁');
+  renderShopIconPicker(DEFAULT_SHOP_ICON);
   document.getElementById('shopModal').classList.add('active');
+  // Wider modal: needs to fit a 7-col pixel-icon grid + comfortable padding.
+  const m = document.getElementById('shopModal').querySelector('.modal');
+  if (m) m.style.maxWidth = '540px';
   setTimeout(() => document.getElementById('shopNameInput').focus(), 100);
 }
 function closeShopModal() { document.getElementById('shopModal').classList.remove('active'); }
