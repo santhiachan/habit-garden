@@ -4,6 +4,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Habit Garden · 习惯小花园</title>
 
+<!-- Favicons: PNG variants downsampled from the watercolor circular logo.
+     16/32/48 cover desktop tabs; 180 is for iOS home-screen pin. -->
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=LXGW+WenKai+TC&display=swap" rel="stylesheet">
@@ -1257,6 +1264,42 @@
     text-align: center;
     padding: 20px;
   }
+  /* Pixel-art pocket watch sits to the left of the timer digits.
+     Inline-flex keeps clock + digits as a tight, centered cluster
+     even when the surrounding panel is much wider.
+     The right column stacks the time, label, and the "focus on what?"
+     input so the watch can match their *combined* height. */
+  .timer-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 26px;
+    text-align: left;
+  }
+  .timer-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+    min-width: 280px;
+  }
+  .timer-stack .form-group {
+    margin: 14px 0 0;
+    max-width: none;
+  }
+  .timer-clock {
+    /* Sized to span timer-time (88px) + label + focus-what form. */
+    height: 240px;
+    width: 240px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    flex-shrink: 0;
+    /* Subtle bob so the watch feels alive but doesn't distract from the digits. */
+    animation: clockBob 4.2s ease-in-out infinite;
+  }
+  @keyframes clockBob {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-3px) rotate(1.5deg); }
+  }
   .timer-time {
     font-family: 'Fraunces', serif;
     font-size: 56px;
@@ -1397,6 +1440,9 @@
     .tab { font-size: 13px; padding: 10px 12px; min-width: 70px; }
     .pet-card, .panel { padding: 20px; }
     .timer-time { font-size: 44px; }
+    .timer-clock { width: 130px; height: 130px; }
+    .timer-row { gap: 14px; flex-direction: row; align-items: flex-start; }
+    .timer-stack { min-width: 0; flex: 1; }
   }
 </style>
 
@@ -1666,13 +1712,17 @@
 
     <div class="panel" style="margin-top: 20px; text-align: center;">
       <div class="timer-display">
-        <div class="timer-time" id="timerTime">25:00</div>
-        <div class="timer-label" id="timerLabel" data-i18n="timer_idle">准备一段温柔的专注</div>
-      </div>
-
-      <div class="form-group" style="max-width: 400px; margin: 0 auto 16px;">
-        <label data-i18n="focus_what">这次想专注做什么？</label>
-        <input id="focusTaskName" data-i18n-ph="focus_what_ph" placeholder="例如：读《悉达多》第 3 章">
+        <div class="timer-row">
+          <img class="timer-clock" src="assets/clock.png" alt="" aria-hidden="true"/>
+          <div class="timer-stack">
+            <div class="timer-time" id="timerTime">25:00</div>
+            <div class="timer-label" id="timerLabel" data-i18n="timer_idle">准备一段温柔的专注</div>
+            <div class="form-group">
+              <label data-i18n="focus_what">这次想专注做什么？</label>
+              <input id="focusTaskName" data-i18n-ph="focus_what_ph" placeholder="例如：读《悉达多》第 3 章">
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="form-group" style="max-width: 400px; margin: 0 auto 20px;">
@@ -2135,17 +2185,16 @@ function openSpeciesPicker(mode){
   _pickerMode = mode === 'readopt' ? 'readopt' : 'new';
   const grid = document.getElementById('speciesPickerGrid');
   const en = getLang()==='en';
-  const emojiMap = {
-    edamame:'🫛', rose:'🌹', tomato:'🍅', cactus:'🌵', monstera:'🌿',
-    hyacinth:'💜', mimosa:'🌸', hydrangea:'💙',
-    blueberry:'🫐', orange:'🍊', eggplant:'🍆',
-    nepenthes:'🫖', flytrap:'🦷', hogweed:'☂️',
-  };
+  // Pixel-art plant portraits live in assets/plants/<key>.png — one per species.
+  // Rendered at 80px tall with pixelated scaling so the hand-drawn pixels stay crisp.
   grid.innerHTML = SPECIES_KEYS.map(k => {
     const info = PET_SPECIES[k];
     const name = en ? info.enName : info.zhName;
-    return `<button onclick="pickSpecies('${k}')" style="background:var(--cream-2); border:2px solid transparent; border-radius:14px; padding:12px 8px; font-family:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; transition: all .12s;" onmouseenter="this.style.borderColor='var(--moss)'; this.style.transform='translateY(-2px)'" onmouseleave="this.style.borderColor='transparent'; this.style.transform=''">
-      <div style="font-size:32px; line-height:1;">${emojiMap[k] || '🌱'}</div>
+    return `<button onclick="pickSpecies('${k}')" style="background:var(--cream-2); border:2px solid transparent; border-radius:14px; padding:10px 8px 12px; font-family:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; transition: all .12s;" onmouseenter="this.style.borderColor='var(--moss)'; this.style.transform='translateY(-2px)'" onmouseleave="this.style.borderColor='transparent'; this.style.transform=''">
+      <div style="height:88px; display:flex; align-items:flex-end; justify-content:center;">
+        <img src="assets/plants/${k}.png" alt="" draggable="false"
+             style="max-height:88px; max-width:80px; image-rendering:pixelated; image-rendering:crisp-edges; -webkit-user-drag:none;"/>
+      </div>
       <div style="font-size:13px; font-weight:600; color:var(--ink);">${name}</div>
     </button>`;
   }).join('');
