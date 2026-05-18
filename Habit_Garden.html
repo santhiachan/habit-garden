@@ -3031,15 +3031,56 @@ function maybeDropCard(difficulty) {
   return card;
 }
 
-const PET_STAGES = [
-  { name: '小种子', nameEn: 'Tiny Seed', minXp: 0 },
-  { name: '萌芽期', nameEn: 'Sprout', minXp: 50 },
-  { name: '小芽豆', nameEn: 'Little Bean', minXp: 150 },
-  { name: '小绿豆', nameEn: 'Wee Greenie', minXp: 400 },
-  { name: '胖胖豆', nameEn: 'Dumpling Bean', minXp: 800 },
-  { name: '星辰豆', nameEn: 'Starry Bean', minXp: 1500 },
-];
-function getPetStageName(i){ const s = PET_STAGES[i]; return getLang()==='en' ? (s.nameEn || s.name) : s.name; }
+/* Per-species pet stage names. Stage 0/1 (seed/sprout) are shared
+   across species because the visuals are nearly identical. Stages 2–5
+   are tailored to each plant's actual features (玫瑰 has thorns, 仙人
+   掌 has spikes, 番茄 ripens red, etc) while keeping the same cute,
+   diminutive register as the original 毛豆 names. */
+const PET_STAGE_XP = [0, 50, 150, 400, 800, 1500];
+const PET_STAGE_NAMES = {
+  edamame:  { zh: ['小种子','萌芽期','小芽豆','小绿豆','胖胖豆','星辰豆'],
+              en: ['Tiny Seed','Sprout','Little Bean','Wee Greenie','Dumpling Bean','Starry Bean'] },
+  rose:     { zh: ['小种子','萌芽期','嫩刺芽','小绿藤','小玫瑰','玫瑰公爵'],
+              en: ['Tiny Seed','Sprout','Thorn Bud','Little Vine','Lil Rose','Rose Duke'] },
+  tomato:   { zh: ['小种子','萌芽期','小绿苗','青藤豆','红脸蛋','番茄老头儿'],
+              en: ['Tiny Seed','Sprout','Green Sprout','Vine Cub','Red Cheeks','Old Tomato'] },
+  cactus:   { zh: ['小种子','萌芽期','小刺球','刺猬球','戴花刺','大仙人'],
+              en: ['Tiny Seed','Sprout','Spiky Ball','Hedgehog Ball','Flower-Spike','Big Cactus'] },
+  monstera: { zh: ['小种子','萌芽期','嫩心叶','小龟背','绿叶龟','龟背大王'],
+              en: ['Tiny Seed','Sprout','Heart Leaf','Lil Shell','Green Turtle','Monstera King'] },
+  hyacinth: { zh: ['小种子','萌芽期','嫩叶束','小绿剑','紫花苞','风信仙子'],
+              en: ['Tiny Seed','Sprout','Leaf Tuft','Green Sword','Purple Bud','Hyacinth Fairy'] },
+  mimosa:   { zh: ['小种子','萌芽期','小绿苗','小绒球','粉球苞','棉花糖球'],
+              en: ['Tiny Seed','Sprout','Green Sprout','Fuzz Ball','Pink Pom Bud','Cotton Puff'] },
+  hydrangea:{ zh: ['小种子','萌芽期','嫩叶丛','小球苞','胖胖球','蓝绣球'],
+              en: ['Tiny Seed','Sprout','Leaf Cluster','Pom Bud','Chubby Pom','Blue Hydrangea'] },
+  blueberry:{ zh: ['小种子','萌芽期','嫩绿苗','青果豆','蓝脸蛋','蓝调王子'],
+              en: ['Tiny Seed','Sprout','Green Sprout','Green Berry','Blue Cheeks','Blueberry Prince'] },
+  orange:   { zh: ['小种子','萌芽期','嫩芽叶','小青果','小丑橘','大胖橘'],
+              en: ['Tiny Seed','Sprout','Tiny Leaf','Green Fruit','Lil Clown Orange','Big Plump Orange'] },
+  eggplant: { zh: ['小种子','萌芽期','嫩绿苗','小青茄','紫胖苞','紫茄君'],
+              en: ['Tiny Seed','Sprout','Green Sprout','Lil Eggplant','Plump Purple Bud','Eggplant Lord'] },
+  nepenthes:{ zh: ['小种子','萌芽期','嫩叶须','小猪苞','小笼苞','大猪笼'],
+              en: ['Tiny Seed','Sprout','Tendril Shoot','Lil Piglet Bud','Lantern Bud','Big Pitcher'] },
+  flytrap:  { zh: ['小种子','萌芽期','嫩芽齿','小网兜','小獠牙','大牙怪'],
+              en: ['Tiny Seed','Sprout','Tooth Bud','Lil Net','Lil Fang','Big Toothy'] },
+  hogweed:  { zh: ['小种子','萌芽期','嫩绿丛','小伞苗','小白伞','白裙公主'],
+              en: ['Tiny Seed','Sprout','Green Tuft','Umbrella Sprout','Lil White Umbrella','White-Dress Princess'] },
+};
+// Back-compat: keep PET_STAGES as the edamame defaults for any code that still
+// reads it directly (e.g. minXp thresholds). Stage *names* now route through
+// getPetStageName() which is species-aware.
+const PET_STAGES = PET_STAGE_XP.map((xp, i) => ({
+  name: PET_STAGE_NAMES.edamame.zh[i],
+  nameEn: PET_STAGE_NAMES.edamame.en[i],
+  minXp: xp,
+}));
+function getPetStageName(i){
+  const sp = (typeof getSpecies === 'function') ? getSpecies() : 'edamame';
+  const set = PET_STAGE_NAMES[sp] || PET_STAGE_NAMES.edamame;
+  const arr = getLang()==='en' ? set.en : set.zh;
+  return arr[i] || arr[0];
+}
 
 function getPetStage() {
   let idx = 0;
