@@ -1394,6 +1394,9 @@
   .todo-btn-pause { background: var(--butter); color: var(--ink); box-shadow: 0 3px 0 #c89a3b; }
   .todo-btn-pause:hover { transform: translateY(-1px); box-shadow: 0 4px 0 #c89a3b; }
   .todo-btn-pause:active { transform: translateY(2px); box-shadow: 0 1px 0 #c89a3b; }
+  .todo-btn-reset { background: var(--peach); color: #fff; box-shadow: 0 3px 0 var(--peach-deep); }
+  .todo-btn-reset:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--peach-deep); }
+  .todo-btn-reset:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--peach-deep); }
   .todo-controls button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
   .todo-items {
     display: flex; flex-direction: column; gap: 6px;
@@ -5468,6 +5471,35 @@ function todoPause(listId) {
   }
 }
 
+/* Reset the current item's countdown back to its full configured duration.
+   Works whether the list is running, paused, or resting — in all cases the
+   current item's remaining time is set back to mins*60000. If resting, the
+   rest timer is cancelled and we resume into a fresh full work countdown. */
+function todoReset(listId) {
+  const list = _todoFindList(listId); if (!list) return;
+  const r = list.run; if (!r) return;
+  const idx = (typeof r.currentIdx === 'number') ? r.currentIdx : 0;
+  const item = list.items[idx]; if (!item) return;
+  const fullMs = (item.mins || 25) * 60000;
+  const now = Date.now();
+  if (r.state === 'running') {
+    r.endTime = now + fullMs;
+  } else if (r.state === 'paused') {
+    r.remainingMs = fullMs;
+  } else if (r.state === 'resting') {
+    // Cancel rest and resume a fresh full countdown on the work item.
+    delete r.restEndTime;
+    delete r.workRemainingMs;
+    r.state = 'running';
+    r.endTime = now + fullMs;
+  } else {
+    return;
+  }
+  save();
+  _ensureTodoTicker();
+  renderTodoLists();
+}
+
 function todoRest(listId) {
   const list = _todoFindList(listId); if (!list) return;
   const r = list.run;
@@ -5668,6 +5700,7 @@ function renderTodoLists() {
           <button class="todo-btn-start" onclick="todoStart('${list.id}')">${startLabel}</button>
           <button class="todo-btn-rest" onclick="todoRest('${list.id}')" ${r.state !== 'running' ? 'disabled' : ''}>${T('休息 5 min', 'Rest 5 min')}</button>
           <button class="todo-btn-pause" onclick="todoPause('${list.id}')" ${(r.state !== 'running' && r.state !== 'resting') ? 'disabled' : ''}>${T('暂停 ⏸', 'Pause ⏸')}</button>
+          <button class="todo-btn-reset" onclick="todoReset('${list.id}')" ${(r.state !== 'running' && r.state !== 'resting' && r.state !== 'paused') ? 'disabled' : ''} title="${T('重置当前项倒计时','Reset current item countdown')}">${T('重置 ↻', 'Reset ↻')}</button>
         </div>
         <div class="todo-items">${itemRows}</div>
         <button class="todo-add-item-btn" onclick="todoAddItem('${list.id}')">+ ${T('加一项','Add item')}</button>
