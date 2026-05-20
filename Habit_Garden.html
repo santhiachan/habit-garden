@@ -1399,7 +1399,7 @@
     display: flex; flex-direction: column; gap: 6px;
   }
   .todo-item-row {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: flex-start; gap: 8px;
     background: rgba(255,255,255,0.6); border-radius: 10px;
     padding: 8px 10px; border: 1.5px solid transparent;
     transition: all 0.15s;
@@ -1420,6 +1420,12 @@
     background: transparent; border: none; outline: none;
     font-family: inherit; font-size: 14px; color: var(--ink);
     padding: 2px 4px;
+    /* Auto-grow textarea: starts as 1 line, expands to fit content. resize:none
+       hides the OS grippie; line-height matches the input visually. */
+    resize: none;
+    line-height: 1.45;
+    overflow: hidden;
+    word-break: break-word;
   }
   .todo-item-mins {
     width: 64px; text-align: right;
@@ -5341,7 +5347,7 @@ function _todoFindList(listId) { return (state.todoLists || []).find(l => l.id =
 
 function todoUpdateTitle(listId, val) {
   const list = _todoFindList(listId); if (!list) return;
-  list.title = val.trim().slice(0, 60) || T('新清单', 'New list');
+  list.title = val.trim() || T('新清单', 'New list');
   save();
 }
 
@@ -5373,7 +5379,7 @@ function todoDeleteItem(listId, itemId) {
 function todoUpdateItem(listId, itemId, field, val) {
   const list = _todoFindList(listId); if (!list) return;
   const item = list.items.find(it => it.id === itemId); if (!item) return;
-  if (field === 'name') item.name = val.slice(0, 80);
+  if (field === 'name') item.name = val;
   else if (field === 'mins') {
     const n = parseInt(val, 10);
     item.mins = (Number.isFinite(n) && n > 0) ? Math.min(240, n) : 25;
@@ -5637,8 +5643,8 @@ function renderTodoLists() {
       return `
         <div class="${cls.join(' ')}">
           <div class="todo-item-marker">${marker}</div>
-          <input class="todo-item-name" value="${escapeHtml(it.name)}" placeholder="${T('做点什么呢？','What to do?')}"
-                 oninput="todoUpdateItem('${list.id}','${it.id}','name', this.value)"/>
+          <textarea class="todo-item-name" rows="1" placeholder="${T('做点什么呢？','What to do?')}"
+                 oninput="todoUpdateItem('${list.id}','${it.id}','name', this.value); this.style.height='auto'; this.style.height=this.scrollHeight+'px';">${escapeHtml(it.name)}</textarea>
           <input class="todo-item-mins" type="number" min="1" max="240" step="1" value="${it.mins}"
                  oninput="todoUpdateItem('${list.id}','${it.id}','mins', this.value)"/>
           <span class="todo-item-unit">${T('分钟','min')}</span>
@@ -5668,6 +5674,12 @@ function renderTodoLists() {
       </div>`);
   }
   host.innerHTML = parts.join('');
+  // Auto-size each item-name textarea to fit existing content (so saved
+  // multi-line items render at full height on first paint, not 1 row).
+  host.querySelectorAll('.todo-item-name').forEach(ta => {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
   _todoUpdateTimes();
   // If anything was already running when the page loaded, restart the ticker.
   if (state.todoLists.some(l => l.run && (l.run.state === 'running' || l.run.state === 'resting'))) {
