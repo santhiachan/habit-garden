@@ -1329,6 +1329,137 @@
   .focus-preset:hover { background: var(--moss); color: #fff; border-color: var(--moss); }
   .focus-preset.active { background: var(--moss); color: #fff; border-color: var(--moss); }
 
+  /* ============ To-do list timers (focus tab) ============
+     Each list is a self-contained card: title + items + countdown + controls.
+     Sub-panels inset slightly so the parent panel still reads as a group. */
+  .todo-list-card {
+    background: var(--cream-2);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1.5px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .todo-list-card.is-running { border-color: var(--moss); }
+  .todo-list-card.is-resting { border-color: var(--sky-deep); }
+  .todo-list-card.is-paused { border-color: var(--butter); }
+  .todo-list-card.is-done { border-color: var(--peach); opacity: 0.85; }
+  .todo-list-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  }
+  .todo-list-title {
+    flex: 1; min-width: 0;
+    background: transparent; border: none; outline: none;
+    font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600;
+    color: var(--ink); padding: 4px 6px; border-radius: 8px;
+  }
+  .todo-list-title:hover, .todo-list-title:focus { background: rgba(255,255,255,0.5); }
+  .todo-list-trash {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--ink-soft); font-size: 18px; opacity: 0.5;
+    padding: 4px 8px; line-height: 1;
+  }
+  .todo-list-trash:hover { color: var(--peach-deep); opacity: 1; }
+  .todo-status-bar {
+    background: rgba(255,255,255,0.6); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .todo-status-text {
+    font-family: 'Caveat', cursive; font-size: 16px;
+    color: var(--ink-soft); min-width: 0; flex: 1;
+  }
+  .todo-status-time {
+    font-family: 'Fraunces', serif; font-size: 32px; font-weight: 700;
+    color: var(--moss-deep); letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .todo-list-card.is-resting .todo-status-time { color: var(--sky-deep); }
+  .todo-list-card.is-paused .todo-status-time { color: var(--peach-deep); }
+  .todo-controls {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .todo-controls button {
+    flex: 1; min-width: 80px; padding: 8px 14px;
+    border: none; border-radius: 999px; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .todo-btn-start { background: var(--moss); color: #fff; box-shadow: 0 3px 0 var(--moss-deep); }
+  .todo-btn-start:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--moss-deep); }
+  .todo-btn-start:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--moss-deep); }
+  .todo-btn-rest { background: var(--sky); color: #fff; box-shadow: 0 3px 0 var(--sky-deep); }
+  .todo-btn-rest:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--sky-deep); }
+  .todo-btn-rest:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--sky-deep); }
+  .todo-btn-pause { background: var(--butter); color: var(--ink); box-shadow: 0 3px 0 #c89a3b; }
+  .todo-btn-pause:hover { transform: translateY(-1px); box-shadow: 0 4px 0 #c89a3b; }
+  .todo-btn-pause:active { transform: translateY(2px); box-shadow: 0 1px 0 #c89a3b; }
+  .todo-controls button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+  .todo-items {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .todo-item-row {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.6); border-radius: 10px;
+    padding: 8px 10px; border: 1.5px solid transparent;
+    transition: all 0.15s;
+  }
+  .todo-item-row.is-current { border-color: var(--moss); background: rgba(122,155,110,0.15); }
+  .todo-item-row.is-done { opacity: 0.45; }
+  .todo-item-row.is-done .todo-item-name { text-decoration: line-through; }
+  .todo-item-marker {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--cream-2); border: 1.5px solid var(--ink-soft);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--moss-deep);
+  }
+  .todo-item-row.is-current .todo-item-marker { background: var(--moss); border-color: var(--moss); color: #fff; }
+  .todo-item-row.is-done .todo-item-marker { background: var(--moss); border-color: var(--moss); color: #fff; }
+  .todo-item-name {
+    flex: 1; min-width: 0;
+    background: transparent; border: none; outline: none;
+    font-family: inherit; font-size: 14px; color: var(--ink);
+    padding: 2px 4px;
+  }
+  .todo-item-mins {
+    width: 64px; text-align: right;
+    background: transparent; border: 1px solid transparent;
+    outline: none; font-family: inherit; font-size: 13px;
+    color: var(--ink-soft); padding: 2px 6px; border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .todo-item-mins:hover, .todo-item-mins:focus { background: rgba(255,255,255,0.7); border-color: var(--cream-2); }
+  .todo-item-unit { font-size: 12px; color: var(--ink-soft); flex-shrink: 0; }
+  .todo-item-trash {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--ink-soft); font-size: 14px; opacity: 0.4;
+    padding: 2px 6px; line-height: 1; flex-shrink: 0;
+  }
+  .todo-item-trash:hover { color: var(--peach-deep); opacity: 1; }
+  .todo-item-check {
+    background: var(--moss); color: #fff;
+    border: none; border-radius: 999px; cursor: pointer;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; line-height: 1.4; flex-shrink: 0;
+    box-shadow: 0 2px 0 var(--moss-deep);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .todo-item-check:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--moss-deep); }
+  .todo-item-check:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--moss-deep); }
+  .todo-add-item-btn {
+    background: transparent; color: var(--ink-soft);
+    border: 1.5px dashed var(--ink-soft);
+    border-radius: 10px; padding: 8px; cursor: pointer;
+    font-family: inherit; font-size: 13px; opacity: 0.7;
+    transition: all 0.15s; margin-top: 4px;
+  }
+  .todo-add-item-btn:hover { opacity: 1; border-color: var(--moss); color: var(--moss-deep); }
+  .todo-empty-hint {
+    text-align: center; color: var(--ink-soft); font-size: 13px;
+    padding: 20px 10px; background: var(--cream-2);
+    border-radius: 12px; opacity: 0.8;
+  }
+
   /* Pink-flower celebration released at the end of a focus session (either
      the timer ran out or the user tapped "完成 ✓" early). Uses the same
      fixed-overlay idea as firework-layer so the petals can fall from the
@@ -1751,6 +1882,18 @@
         <span class="pet-name-inline"></span><span data-i18n="focus_blurb2">最喜欢看你勇敢地坐下来那一刻。</span>
       </div>
     </div>
+
+    <!-- To-do list timers: each card runs a sequence of timed work items
+         with shared Start/Rest/Pause controls; survives page reloads
+         because endTime is persisted in state.todoLists. -->
+    <div class="panel" style="margin-top: 20px;">
+      <div class="panel-title" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <span data-i18n="todo_lists_title">任务清单倒计时</span>
+        <button class="btn btn-ghost" data-i18n="todo_new_list" onclick="todoCreateList()" style="padding: 6px 14px; font-size: 13px; max-width: none; width: auto;">+ 新清单</button>
+      </div>
+      <div class="panel-sub" data-i18n="todo_lists_sub">任务依次计时，休息 5 分钟后自动继续。</div>
+      <div id="todoListsContainer" style="display:flex; flex-direction:column; gap:14px;"></div>
+    </div>
   </section>
 
   <section class="view" id="view-insights">
@@ -2122,7 +2265,7 @@ function _freshDefaultState() {
     dims: { career: 0, charm: 0, wealth: 0, wisdom: 0, health: 0 },
     tasks: [], completions: {}, shopItems: [], shopPurchases: {},
     cards: {}, sleep: {}, journal: [], moods: {}, customMoods: [],
-    pinnedTaskIds: [], dailyMustDoByDate: {},
+    pinnedTaskIds: [], dailyMustDoByDate: {}, todoLists: [],
     settings: { seenWelcome: false, seedOpened: false, displayName: null }
   };
 }
@@ -4559,6 +4702,10 @@ function completeTask(taskId, partial = false) {
   renderAll();
   // Firework on every task completion (including partial starts).
   try { playFirework(); } catch (e) {}
+  // Completion chime (same 3-bell sound as a finished todo-list) — only on
+  // full completions, not partial starts, so 启动 stays quiet and the chime
+  // is reserved for an actual finish moment.
+  if (!partial) { try { _todoPlayChime('list'); } catch (e) {} }
   // Level-up celebration — run after renderAll so the plant SVG is the new stage.
   if (newStage > prevStage) {
     try { triggerStageUpCelebration(prevStage, newStage); } catch (e) {}
@@ -5109,6 +5256,425 @@ function releaseModalHearts(host){
   }
 }
 
+/* ============ To-do list timers ============
+   Each list is a sequence of items (name + duration in minutes). Tapping
+   Start kicks off the first item's countdown; when it hits 0, the timer
+   advances automatically to the next item. Rest button pauses work for
+   5 minutes then auto-resumes. Pause stops everything until next Start.
+   Finishing the whole list awards +30 XP and +15 stars (≈ task ratio). */
+
+const TODO_REST_MS = 5 * 60 * 1000;
+const TODO_COMPLETE_XP = 30;
+const TODO_COMPLETE_STARS = 15;
+
+/* Short Web Audio chime when an item / list finishes — acts as a gentle
+   alarm so the user doesn't have to keep watching the timer. Lazy AudioContext
+   creation (browsers block until the first user gesture; by the time a list
+   is running the user has definitely interacted).
+   - 'item': single soft two-note chime (C5 + E5 bell)
+   - 'list': three ascending bells for the full-list completion */
+let _todoAudio = null;
+function _todoPlayChime(kind) {
+  try {
+    if (!_todoAudio) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      _todoAudio = new Ctx();
+    }
+    const ctx = _todoAudio;
+    if (ctx.state === 'suspended') ctx.resume();
+    const tones = kind === 'list' ? [523.25, 659.25, 783.99] : [659.25, 523.25];
+    const noteDur = kind === 'list' ? 0.34 : 0.28;
+    const gap = kind === 'list' ? 0.15 : 0.10;
+    const start = ctx.currentTime;
+    tones.forEach((freq, i) => {
+      const t0 = start + i * (noteDur + gap);
+      // Bell-ish: a soft sine fundamental + quieter higher harmonic, both
+      // shaped by a fast attack and exponential decay.
+      [[freq, 0.18], [freq * 2, 0.06]].forEach(([f, peak]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = f;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + noteDur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + noteDur + 0.05);
+      });
+    });
+  } catch (e) {
+    // Audio is decorative; never block timer logic on a failure.
+  }
+}
+
+function _ensureTodoLists() {
+  if (!Array.isArray(state.todoLists)) state.todoLists = [];
+  // Normalize legacy entries that pre-date the run sub-object
+  for (const list of state.todoLists) {
+    if (!list.run) list.run = { state: 'idle', currentIdx: 0 };
+    if (!Array.isArray(list.items)) list.items = [];
+  }
+}
+
+function todoCreateList() {
+  _ensureTodoLists();
+  state.todoLists.push({
+    id: uid(),
+    title: T('新清单', 'New list'),
+    items: [{ id: uid(), name: '', mins: 25 }],
+    run: { state: 'idle', currentIdx: 0 },
+  });
+  save();
+  renderTodoLists();
+}
+
+function todoDeleteList(listId) {
+  if (!confirm(T('删除这个清单？计时也会一起停止。', 'Delete this list? Its timer will stop too.'))) return;
+  state.todoLists = (state.todoLists || []).filter(l => l.id !== listId);
+  save();
+  renderTodoLists();
+}
+
+function _todoFindList(listId) { return (state.todoLists || []).find(l => l.id === listId); }
+
+function todoUpdateTitle(listId, val) {
+  const list = _todoFindList(listId); if (!list) return;
+  list.title = val.trim().slice(0, 60) || T('新清单', 'New list');
+  save();
+}
+
+function todoAddItem(listId) {
+  const list = _todoFindList(listId); if (!list) return;
+  list.items.push({ id: uid(), name: '', mins: 25 });
+  save();
+  renderTodoLists();
+}
+
+function todoDeleteItem(listId, itemId) {
+  const list = _todoFindList(listId); if (!list) return;
+  const idx = list.items.findIndex(it => it.id === itemId);
+  if (idx < 0) return;
+  list.items.splice(idx, 1);
+  // If we're mid-run and the deleted item was at or before the current cursor,
+  // shift the cursor so we keep pointing at the right item.
+  if (list.run && list.run.state !== 'idle' && idx < list.run.currentIdx) {
+    list.run.currentIdx = Math.max(0, list.run.currentIdx - 1);
+  }
+  // If we just deleted the currently-running item, stop the run.
+  if (list.items.length === 0 || (list.run.state === 'running' && idx === list.run.currentIdx)) {
+    list.run = { state: 'idle', currentIdx: 0 };
+  }
+  save();
+  renderTodoLists();
+}
+
+function todoUpdateItem(listId, itemId, field, val) {
+  const list = _todoFindList(listId); if (!list) return;
+  const item = list.items.find(it => it.id === itemId); if (!item) return;
+  if (field === 'name') item.name = val.slice(0, 80);
+  else if (field === 'mins') {
+    const n = parseInt(val, 10);
+    item.mins = (Number.isFinite(n) && n > 0) ? Math.min(240, n) : 25;
+  }
+  save();
+}
+
+/* Early-complete: when the user finishes the currently-running item
+   before its timer hits zero, advance to the next item exactly as if the
+   countdown had expired. Reuses the natural-expire path inside _todoTick
+   by setting endTime to now and forcing one tick — that way the same
+   "next-item OR award XP and celebrate if last" logic runs. */
+function todoCompleteItem(listId, itemId) {
+  const list = _todoFindList(listId); if (!list) return;
+  const r = list.run; if (!r) return;
+  const idx = list.items.findIndex(it => it.id === itemId);
+  if (idx < 0) return;
+  // Only the currently-running item can be early-completed. Other states
+  // (idle / paused / resting / done) ignore the click — the button is
+  // also hidden in those states by renderTodoLists, but guard anyway.
+  if (r.state !== 'running' || idx !== r.currentIdx) return;
+  // Push endTime into the past so the next tick fires the expire path.
+  r.endTime = Date.now() - 1;
+  save();
+  _ensureTodoTicker();
+  _todoTick();
+}
+
+function todoStart(listId) {
+  const list = _todoFindList(listId); if (!list) return;
+  if (!list.items.length) {
+    toast(T('先加几条任务进去吧~', 'Add some tasks first ~'), '🌿');
+    return;
+  }
+  const r = list.run;
+  const now = Date.now();
+  if (r.state === 'paused' && typeof r.remainingMs === 'number') {
+    // Resume from the exact remaining ms captured when paused.
+    r.state = 'running';
+    r.endTime = now + r.remainingMs;
+    delete r.remainingMs;
+  } else if (r.state === 'done') {
+    // Restart the whole list from scratch.
+    r.state = 'running';
+    r.currentIdx = 0;
+    r.endTime = now + (list.items[0].mins || 25) * 60000;
+    delete r.completedAt;
+  } else if (r.state === 'idle' || r.state === 'resting') {
+    // Start (or resume from rest). If we're mid-rest, resume the work
+    // item from exactly where it was paused — workRemainingMs holds
+    // the remaining countdown captured when the user tapped Rest.
+    const wasResting = r.state === 'resting';
+    const stashed = (wasResting && typeof r.workRemainingMs === 'number') ? r.workRemainingMs : null;
+    if (wasResting) {
+      delete r.restEndTime;
+      delete r.workRemainingMs;
+    }
+    r.state = 'running';
+    if (typeof r.currentIdx !== 'number' || r.currentIdx >= list.items.length) r.currentIdx = 0;
+    r.endTime = now + (stashed != null ? stashed : (list.items[r.currentIdx].mins || 25) * 60000);
+  }
+  save();
+  _ensureTodoTicker();
+  renderTodoLists();
+}
+
+function todoPause(listId) {
+  const list = _todoFindList(listId); if (!list) return;
+  const r = list.run;
+  const now = Date.now();
+  if (r.state === 'running') {
+    r.remainingMs = Math.max(0, r.endTime - now);
+    r.state = 'paused';
+    delete r.endTime;
+    save();
+    renderTodoLists();
+  } else if (r.state === 'resting') {
+    // Pausing during rest just cancels the rest — work stays where it was.
+    r.state = 'paused';
+    // Restore the work remaining we stashed before rest started.
+    r.remainingMs = r.workRemainingMs || ((list.items[r.currentIdx]?.mins || 25) * 60000);
+    delete r.restEndTime;
+    delete r.workRemainingMs;
+    save();
+    renderTodoLists();
+  }
+}
+
+function todoRest(listId) {
+  const list = _todoFindList(listId); if (!list) return;
+  const r = list.run;
+  const now = Date.now();
+  if (r.state !== 'running') {
+    toast(T('先启动清单再休息~', 'Start the list before resting ~'), '🌿');
+    return;
+  }
+  // Stash how much of the current work item is left so we can resume it
+  // exactly where we paused once rest finishes.
+  r.workRemainingMs = Math.max(0, r.endTime - now);
+  r.state = 'resting';
+  r.restEndTime = now + TODO_REST_MS;
+  delete r.endTime;
+  save();
+  _ensureTodoTicker();
+  renderTodoLists();
+}
+
+// Background ticker — kicked on whenever any list is active. Stops itself
+// once everything has gone idle to avoid pointless intervals running forever.
+let _todoTicker = null;
+function _ensureTodoTicker() {
+  if (_todoTicker) return;
+  _todoTicker = setInterval(_todoTick, 500);
+}
+function _todoTick() {
+  _ensureTodoLists();
+  let anyActive = false;
+  let needsFullRender = false;
+  let needsSave = false;
+  const now = Date.now();
+  for (const list of state.todoLists) {
+    const r = list.run; if (!r) continue;
+    if (r.state === 'running') {
+      anyActive = true;
+      // Advance through completed items in a loop in case multiple expired
+      // while the tab was hidden / page was closed.
+      while (r.state === 'running' && now >= r.endTime) {
+        const nextIdx = r.currentIdx + 1;
+        if (nextIdx >= list.items.length) {
+          // Whole list completed — award XP + stars, celebrate.
+          r.state = 'done';
+          r.currentIdx = list.items.length;
+          r.completedAt = now;
+          if (typeof state.pet === 'object') state.pet.xp = (state.pet.xp || 0) + TODO_COMPLETE_XP;
+          state.stars = (state.stars || 0) + TODO_COMPLETE_STARS;
+          state.dims = state.dims || {};
+          state.dims.wisdom = (state.dims.wisdom || 0) + Math.ceil(TODO_COMPLETE_XP / 3);
+          if (typeof syncHarvestAfterXpChange === 'function') syncHarvestAfterXpChange();
+          toast(T(`完成「${list.title}」清单！+${TODO_COMPLETE_XP}xp +${TODO_COMPLETE_STARS}✨`,
+                  `Finished "${list.title}"! +${TODO_COMPLETE_XP}xp +${TODO_COMPLETE_STARS}✨`), '🎉');
+          _todoPlayChime('list');
+          try { if (typeof playFirework === 'function') playFirework(); } catch (e) {}
+          needsSave = true;
+          needsFullRender = true;
+        } else {
+          // Slide to the next item, set its end time relative to the old end
+          // (so cumulative drift doesn't matter when multiple items expire).
+          r.currentIdx = nextIdx;
+          r.endTime = r.endTime + (list.items[nextIdx].mins || 25) * 60000;
+          toast(T(`下一项：${list.items[nextIdx].name || '未命名任务'}`,
+                  `Next up: ${list.items[nextIdx].name || 'Untitled task'}`), '⏭');
+          _todoPlayChime('item');
+          needsSave = true;
+          needsFullRender = true;
+        }
+      }
+    } else if (r.state === 'resting') {
+      anyActive = true;
+      if (now >= r.restEndTime) {
+        // Rest complete — resume the work item from where we paused it.
+        r.state = 'running';
+        r.endTime = now + (r.workRemainingMs || (list.items[r.currentIdx]?.mins || 25) * 60000);
+        delete r.restEndTime;
+        delete r.workRemainingMs;
+        toast(T('休息够啦~ 继续吧 🌿', 'Rest done ~ keep going 🌿'), '☕');
+        _todoPlayChime('item');
+        needsSave = true;
+        needsFullRender = true;
+      }
+    } else if (r.state === 'paused') {
+      // Paused timers don't count as active for the ticker — they don't need
+      // re-rendering until the user touches them.
+    }
+  }
+  if (needsSave) save();
+  if (needsFullRender) renderTodoLists();
+  else _todoUpdateTimes();
+  if (!anyActive) {
+    clearInterval(_todoTicker);
+    _todoTicker = null;
+  }
+}
+
+function _todoFormatMMSS(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+// Update only the time displays without rebuilding the whole UI, so the
+// user's keystrokes in the title/item inputs aren't interrupted while
+// editing as the countdown ticks.
+function _todoUpdateTimes() {
+  const now = Date.now();
+  for (const list of state.todoLists || []) {
+    const card = document.querySelector(`.todo-list-card[data-list-id="${list.id}"]`);
+    if (!card) continue;
+    const timeEl = card.querySelector('.todo-status-time');
+    const textEl = card.querySelector('.todo-status-text');
+    if (!timeEl || !textEl) continue;
+    const r = list.run || { state: 'idle' };
+    if (r.state === 'running') {
+      timeEl.textContent = _todoFormatMMSS(r.endTime - now);
+      const cur = list.items[r.currentIdx];
+      textEl.textContent = T(`正在专注：${cur?.name || '未命名任务'} · 第 ${r.currentIdx+1}/${list.items.length} 项`,
+                              `Focusing: ${cur?.name || 'Untitled'} · ${r.currentIdx+1}/${list.items.length}`);
+    } else if (r.state === 'resting') {
+      timeEl.textContent = _todoFormatMMSS(r.restEndTime - now);
+      const workLeft = _todoFormatMMSS(r.workRemainingMs || 0);
+      const curName = list.items[r.currentIdx]?.name || (T('未命名任务','Untitled'));
+      textEl.textContent = T(
+        `休息中 · 「${curName}」剩 ${workLeft}，结束后自动继续`,
+        `Resting · "${curName}" has ${workLeft} left, auto-resumes`
+      );
+    } else if (r.state === 'paused') {
+      timeEl.textContent = _todoFormatMMSS(r.remainingMs || 0);
+      textEl.textContent = T('已暂停 · 点启动继续', 'Paused · tap Start to resume');
+    } else if (r.state === 'done') {
+      timeEl.textContent = '✓';
+      textEl.textContent = T('清单已完成 🌷', 'List complete 🌷');
+    } else {
+      // idle
+      const total = (list.items || []).reduce((s, it) => s + (it.mins || 0), 0);
+      timeEl.textContent = _todoFormatMMSS(total * 60000);
+      textEl.textContent = T(`共 ${list.items.length} 项 · 总计 ${total} 分钟`,
+                              `${list.items.length} items · ${total} min total`);
+    }
+  }
+}
+
+function renderTodoLists() {
+  _ensureTodoLists();
+  const host = document.getElementById('todoListsContainer');
+  if (!host) return;
+  if (!state.todoLists.length) {
+    host.innerHTML = `<div class="todo-empty-hint">${T('还没有清单。点上面的「+ 新清单」开始一个吧~', 'No lists yet. Tap "+ New list" above to start one ~')}</div>`;
+    return;
+  }
+  const parts = [];
+  for (const list of state.todoLists) {
+    const r = list.run || { state: 'idle', currentIdx: 0 };
+    const stateClass = r.state === 'running' ? 'is-running'
+                     : r.state === 'resting' ? 'is-resting'
+                     : r.state === 'paused'  ? 'is-paused'
+                     : r.state === 'done'    ? 'is-done'
+                     : '';
+    const isActive = r.state === 'running' || r.state === 'resting';
+    const startLabel = r.state === 'paused'
+      ? T('继续 ▸', 'Resume ▸')
+      : r.state === 'done'
+        ? T('重新开始', 'Restart')
+        : T('启动 ▸', 'Start ▸');
+    const itemRows = list.items.map((it, idx) => {
+      const isCurrent = isActive && idx === r.currentIdx;
+      const isDone = r.state === 'done' || (isActive && idx < r.currentIdx);
+      const cls = ['todo-item-row'];
+      if (isCurrent) cls.push('is-current');
+      if (isDone) cls.push('is-done');
+      const marker = isDone ? '✓' : (isCurrent ? '▸' : (idx + 1));
+      return `
+        <div class="${cls.join(' ')}">
+          <div class="todo-item-marker">${marker}</div>
+          <input class="todo-item-name" value="${escapeHtml(it.name)}" placeholder="${T('做点什么呢？','What to do?')}"
+                 oninput="todoUpdateItem('${list.id}','${it.id}','name', this.value)"/>
+          <input class="todo-item-mins" type="number" min="1" max="240" step="1" value="${it.mins}"
+                 oninput="todoUpdateItem('${list.id}','${it.id}','mins', this.value)"/>
+          <span class="todo-item-unit">${T('分钟','min')}</span>
+          ${isCurrent ? `<button class="todo-item-check" onclick="todoCompleteItem('${list.id}','${it.id}')" title="${T('提早完成,进入下一项','Finish early, next item')}">${T('完成 ✓','Done ✓')}</button>` : ''}
+          <button class="todo-item-trash" onclick="todoDeleteItem('${list.id}','${it.id}')" title="${T('删除','Delete')}">✕</button>
+        </div>`;
+    }).join('');
+    parts.push(`
+      <div class="todo-list-card ${stateClass}" data-list-id="${list.id}">
+        <div class="todo-list-head">
+          <input class="todo-list-title" value="${escapeHtml(list.title)}"
+                 oninput="todoUpdateTitle('${list.id}', this.value)"
+                 placeholder="${T('清单名字','List name')}"/>
+          <button class="todo-list-trash" onclick="todoDeleteList('${list.id}')" title="${T('删除清单','Delete list')}">🗑</button>
+        </div>
+        <div class="todo-status-bar">
+          <div class="todo-status-text"></div>
+          <div class="todo-status-time"></div>
+        </div>
+        <div class="todo-controls">
+          <button class="todo-btn-start" onclick="todoStart('${list.id}')">${startLabel}</button>
+          <button class="todo-btn-rest" onclick="todoRest('${list.id}')" ${r.state !== 'running' ? 'disabled' : ''}>${T('休息 5 min', 'Rest 5 min')}</button>
+          <button class="todo-btn-pause" onclick="todoPause('${list.id}')" ${(r.state !== 'running' && r.state !== 'resting') ? 'disabled' : ''}>${T('暂停 ⏸', 'Pause ⏸')}</button>
+        </div>
+        <div class="todo-items">${itemRows}</div>
+        <button class="todo-add-item-btn" onclick="todoAddItem('${list.id}')">+ ${T('加一项','Add item')}</button>
+      </div>`);
+  }
+  host.innerHTML = parts.join('');
+  _todoUpdateTimes();
+  // If anything was already running when the page loaded, restart the ticker.
+  if (state.todoLists.some(l => l.run && (l.run.state === 'running' || l.run.state === 'resting'))) {
+    _ensureTodoTicker();
+  }
+}
+
 function renderAll() {
   renderHeader();
   renderPet();
@@ -5117,6 +5683,7 @@ function renderAll() {
   renderShop();
   renderCards();
   renderJournal();
+  renderTodoLists();
   // The week chart panel was merged into the mood panel as a dual-y line
   // chart. renderMood() now takes care of drawing it.
   renderSleepStatus();
@@ -5869,6 +6436,9 @@ function finishAfterStart(id) {
   renderAll();
   toast(T(`完成「${task.name}」 +${xp}xp +${stars}✨`, `Done: "${task.name}" +${xp}xp +${stars}✨`), '✨');
   try { playFirework(); } catch (e) {}
+  // Completion chime (matches the todo-list 3-bell tone) when the user
+  // finishes the second half of a started task.
+  try { _todoPlayChime('list'); } catch (e) {}
   if (newStage > prevStage) {
     try { triggerStageUpCelebration(prevStage, newStage); } catch (e) {}
   }
@@ -6617,6 +7187,9 @@ const I18N_MAP = {
   f_done: { zh: '完成 ✓', en: 'Done ✓' },
   focus_blurb: { zh: '启动是最难的。坐下 <b>5 分钟</b> 就有保底奖励，随时点「完成 ✓」即可拿到全部积分。', en: 'Starting is the hardest part. Sit for <b>5 minutes</b> to lock in a start-up reward, and tap "Done ✓" any time to claim the full session credit.' },
   focus_blurb2: { zh: '最喜欢看你勇敢地坐下来那一刻。', en: ' loves seeing the moment you bravely sit down.' },
+  todo_lists_title: { zh: '任务清单倒计时', en: 'Task-list timers' },
+  todo_new_list: { zh: '+ 新清单', en: '+ New list' },
+  todo_lists_sub: { zh: '任务依次计时，休息 5 分钟后自动继续。', en: 'Tasks count down in order; rests auto-resume after 5 min.' },
   log_title: { zh: '心情与记录', en: 'Mood & journal' },
   log_sub: { zh: '温柔地看看自己走过的路', en: 'A gentle look at the path you\u2019ve walked' },
   today_words: { zh: '今日一言', en: 'A line for today' },
