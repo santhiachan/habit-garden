@@ -2540,6 +2540,8 @@ function load() {
     try { state = { ...state, ...JSON.parse(raw) }; } catch(e) {}
   }
   handleDayRoll();
+  // Backfill any new todo-list fields on lists saved by older versions.
+  if (typeof _migrateTodoLists === 'function') _migrateTodoLists();
 }
 
 function handleDayRoll() {
@@ -5401,17 +5403,52 @@ function _todoPlayChime(kind) {
 
 function _ensureTodoLists() {
   if (!Array.isArray(state.todoLists)) state.todoLists = [];
-  // Normalize legacy entries that pre-date the run sub-object
+  // Track whether any defaults were filled in so we can persist the
+  // migrated shape to localStorage + cloud. Without this, cloud snapshots
+  // would keep restoring the pre-migration data and the new UI affordances
+  // (collapse, per-item actualMs, total time) would never stick on old
+  // lists that already exist in users' accounts.
+  let migrated = false;
+  const now = Date.now();
   for (const list of state.todoLists) {
-    if (!list.run) list.run = { state: 'idle', currentIdx: 0 };
-    if (!Array.isArray(list.items)) list.items = [];
+    if (!list.run) { list.run = { state: 'idle', currentIdx: 0 }; migrated = true; }
+    if (!Array.isArray(list.items)) { list.items = []; migrated = true; }
     // collapsed is opt-in; missing = expanded.
-    if (typeof list.collapsed !== 'boolean') list.collapsed = false;
+    if (typeof list.collapsed !== 'boolean') { list.collapsed = false; migrated = true; }
     // Per-item actual time spent (excluding paused/resting periods). Added
     // in May 2026 — default existing items to 0 so old lists keep working.
     for (const it of list.items) {
-      if (typeof it.actualMs !== 'number') it.actualMs = 0;
+      if (typeof it.actualMs !== 'number') { it.actualMs = 0; migrated = true; }
     }
+    // In-flight runs that pre-date the actual-time tracking feature need
+    // sensible defaults so the new code paths don't trip on undefined.
+    // Best-effort: count from "now" forward — we can't reconstruct what
+    // happened before the migration, but at least nothing crashes and any
+    // remaining time gets tracked.
+    const r = list.run;
+    if (r.state === 'running' || r.state === 'paused' || r.state === 'resting') {
+      if (typeof r.runStartedAt !== 'number') { r.runStartedAt = now; migrated = true; }
+      if (typeof r.pausedTotalMs !== 'number') { r.pausedTotalMs = 0; migrated = true; }
+      if (r.state === 'running' && typeof r.itemStartTime !== 'number') {
+        r.itemStartTime = now; migrated = true;
+      }
+      if (r.state === 'paused' && typeof r.pauseStartedAt !== 'number') {
+        r.pauseStartedAt = now; migrated = true;
+      }
+    }
+  }
+  return migrated;
+}
+
+/* Run _ensureTodoLists and, if it actually patched anything in, persist
+   the result. Called from boot + every place that wholesale-replaces state
+   from a remote source (cloud load, cloud snapshot, file import). Without
+   the save(), old lists in Firestore would keep their pre-migration shape
+   and the new UI features would never stick across sessions/devices. */
+function _migrateTodoLists() {
+  const changed = _ensureTodoLists();
+  if (changed && typeof save === 'function') {
+    try { save(); } catch(e) { console.warn('[todo] migration save failed:', e); }
   }
 }
 
@@ -8567,6 +8604,13 @@ async function loadFromFirestore() {
       if (typeof window.handleDayRoll === 'function') {
         try { window.handleDayRoll(); } catch(e) { console.warn('[firestore] post-load dayroll failed:', e); }
       }
+      // Cloud copies from older app versions may be missing fields the new
+      // UI relies on (collapse flag, per-item actualMs, run-total tracking).
+      // Backfill them in-place so the new features apply to lists that
+      // existed before this release.
+      if (typeof window._migrateTodoLists === 'function') {
+        try { window._migrateTodoLists(); } catch(e) { console.warn('[firestore] todo migration failed:', e); }
+      }
       // Also update localStorage so offline reload shows the latest cloud data.
       try { localStorage.setItem('habit_garden_v1', JSON.stringify(window.state)); } catch(e) {}
     } else {
@@ -8596,6 +8640,12 @@ function subscribeToChanges() {
       // don't pop back into the list after a remote update.
       if (typeof window.handleDayRoll === 'function') {
         try { window.handleDayRoll(); } catch(e) { console.warn('[firestore] snapshot dayroll failed:', e); }
+      }
+      // And backfill todo-list shape, same reason as the initial load —
+      // a remote device on an older app version may push lists that lack
+      // the new fields.
+      if (typeof window._migrateTodoLists === 'function') {
+        try { window._migrateTodoLists(); } catch(e) { console.warn('[firestore] snapshot todo migration failed:', e); }
       }
       try { localStorage.setItem('habit_garden_v1', JSON.stringify(window.state)); } catch(e) {}
       if (typeof window.renderAll === 'function') window.renderAll();
