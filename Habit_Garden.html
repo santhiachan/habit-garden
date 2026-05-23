@@ -6035,10 +6035,14 @@ function renderTodoLists() {
       // a list that hasn't started yet should clear it.
       const hasProgressed = isActive || r.state === 'paused';
       const isDone = r.state === 'done' || (hasProgressed && idx < r.currentIdx);
-      // Drag-to-reorder is enabled only when the list is idle. Reordering
-      // mid-run would shuffle which item is "current" / "already done", so
-      // we keep it off until the timer is back to a quiet state.
-      const canDrag = !r.state || r.state === 'idle';
+      // Drag-to-reorder is enabled whenever the list isn't actively running
+      // a timer. We allow it in 'idle' AND 'done' states — done lists are
+      // safe to reorder (the items are all completed, not mid-run), and
+      // letting old finished lists be reorderable matches the user's
+      // expectation that any "settled" list can be tidied up. Running /
+      // paused / resting stay locked so we don't shuffle which item is
+      // "current" out from under the timer.
+      const canDrag = !r.state || r.state === 'idle' || r.state === 'done';
       const cls = ['todo-item-row'];
       if (isCurrent) cls.push('is-current');
       if (isDone) cls.push('is-done');
