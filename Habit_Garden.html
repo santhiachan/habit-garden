@@ -5698,6 +5698,17 @@ function todoReorderLists(fromId, toId, before) {
 function todoReorderItems(listId, fromIdx, toIdx) {
   const list = _todoFindList(listId); if (!list) return;
   if (fromIdx < 0 || fromIdx >= list.items.length) return;
+  // Safety net: when the list is actively running/paused/resting, only
+  // items AFTER the current index may be moved, and only into positions
+  // after the current index. The per-item canDrag flag in renderTodoLists
+  // already hides drag affordances for locked rows, but guard here too in
+  // case a drop event sneaks through.
+  const r = list.run || { state: 'idle', currentIdx: 0 };
+  const active = r.state === 'running' || r.state === 'paused' || r.state === 'resting';
+  if (active) {
+    const minIdx = (r.currentIdx || 0) + 1;
+    if (fromIdx < minIdx || toIdx < minIdx) return;
+  }
   // No-op: dropping onto its own slot or the slot immediately after itself.
   if (toIdx === fromIdx || toIdx === fromIdx + 1) return;
   const [moved] = list.items.splice(fromIdx, 1);
@@ -6035,14 +6046,17 @@ function renderTodoLists() {
       // a list that hasn't started yet should clear it.
       const hasProgressed = isActive || r.state === 'paused';
       const isDone = r.state === 'done' || (hasProgressed && idx < r.currentIdx);
-      // Drag-to-reorder is enabled whenever the list isn't actively running
-      // a timer. We allow it in 'idle' AND 'done' states — done lists are
-      // safe to reorder (the items are all completed, not mid-run), and
-      // letting old finished lists be reorderable matches the user's
-      // expectation that any "settled" list can be tidied up. Running /
-      // paused / resting stay locked so we don't shuffle which item is
-      // "current" out from under the timer.
-      const canDrag = !r.state || r.state === 'idle' || r.state === 'done';
+      // Drag-to-reorder rules, per item:
+      //   - When the list is idle or done, every item is draggable.
+      //   - When a timer is in flight (running / paused / resting), only
+      //     items AFTER the current one are draggable. The completed rows
+      //     above and the in-progress row itself stay locked, so we never
+      //     yank the "current item" out from under the running countdown.
+      //   - The same rule applies to drop targets: only future rows accept
+      //     drops, and the drop-index logic in todoDrop naturally clamps to
+      //     the future range because no earlier row carries drop handlers.
+      const listSettled = !r.state || r.state === 'idle' || r.state === 'done';
+      const canDrag = listSettled || idx > r.currentIdx;
       const cls = ['todo-item-row'];
       if (isCurrent) cls.push('is-current');
       if (isDone) cls.push('is-done');
