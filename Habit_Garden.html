@@ -1337,7 +1337,74 @@
     border-radius: 16px;
     padding: 16px;
     border: 1.5px solid transparent;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, opacity 0.2s;
+  }
+  /* Collapsed cards (auto-collapsed when finished, or manually) shrink
+     to a single-line header. The head's bottom margin is dropped so the
+     card hugs the title. */
+  .todo-list-card.is-collapsed { padding: 10px 16px; }
+  .todo-list-card.is-collapsed .todo-list-head { margin-bottom: 0; }
+  .todo-list-card.is-collapsed .todo-status-bar,
+  .todo-list-card.is-collapsed .todo-controls,
+  .todo-list-card.is-collapsed .todo-items,
+  .todo-list-card.is-collapsed .todo-add-item-btn { display: none; }
+  /* Drag handle for whole-list reordering. The 6-dot grip lives at the
+     start of the head; only the grip is the drag handle so the title
+     input stays clickable/editable. */
+  .todo-list-grip {
+    flex: 0 0 auto;
+    width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink-soft); opacity: 0.55;
+    cursor: grab; user-select: none;
+    font-size: 14px; line-height: 1;
+    border-radius: 6px;
+  }
+  .todo-list-grip:hover { opacity: 1; background: rgba(255,255,255,0.5); }
+  .todo-list-grip:active { cursor: grabbing; }
+  /* Collapse chevron beside the title. Rotates when expanded. */
+  .todo-list-toggle {
+    flex: 0 0 auto;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--ink-soft); padding: 4px 6px; border-radius: 6px;
+    font-size: 14px; line-height: 1;
+    transition: transform 0.2s, color 0.2s, background 0.2s;
+  }
+  .todo-list-toggle:hover { color: var(--ink); background: rgba(255,255,255,0.5); }
+  .todo-list-card:not(.is-collapsed) .todo-list-toggle { transform: rotate(90deg); }
+  /* Drop hint for list-level drag: indicate top/bottom edge of target. */
+  .todo-list-card.is-list-dragging { opacity: 0.4; }
+  .todo-list-card.list-drop-before { box-shadow: inset 0 3px 0 0 var(--moss); }
+  .todo-list-card.list-drop-after  { box-shadow: inset 0 -3px 0 0 var(--moss); }
+  /* "Spent X:XX" badge next to each item's planned minutes. Subtle pill,
+     moss-tinted so the user can tell at a glance "this is what really
+     happened" without the row feeling busy. */
+  .todo-item-actual {
+    flex: 0 0 auto;
+    font-size: 11px; color: var(--moss-deep);
+    background: rgba(122,155,110,0.15);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .todo-item-row.is-done .todo-item-actual {
+    /* Keep readable on the dimmed completed row \u2014 the parent's opacity
+       already handles the visual hierarchy. */
+    background: rgba(122,155,110,0.25);
+  }
+  /* Total-time pill in the head of a finished list. Lives between the
+     title and the trash icon so it's visible even when the card is
+     collapsed to a single line. */
+  .todo-list-done-summary {
+    flex: 0 0 auto;
+    font-size: 12px; color: var(--moss-deep);
+    background: rgba(122,155,110,0.18);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    align-self: center;
   }
   .todo-list-card.is-running { border-color: var(--moss); }
   .todo-list-card.is-resting { border-color: var(--sky-deep); }
@@ -1430,6 +1497,10 @@
   .todo-item-row.drop-after  { box-shadow: inset 0 -2px 0 0 var(--moss); }
   .todo-item-name {
     flex: 1; min-width: 0;
+    /* Ensure visibility even before auto-size has measured. If the parent
+       view starts hidden (display:none on .view), scrollHeight is 0 on the
+       first render and the textarea would collapse to nothing. */
+    min-height: 1.6em;
     background: transparent; border: none; outline: none;
     font-family: inherit; font-size: 14px; color: var(--ink);
     padding: 2px 4px;
@@ -5334,7 +5405,56 @@ function _ensureTodoLists() {
   for (const list of state.todoLists) {
     if (!list.run) list.run = { state: 'idle', currentIdx: 0 };
     if (!Array.isArray(list.items)) list.items = [];
+    // collapsed is opt-in; missing = expanded.
+    if (typeof list.collapsed !== 'boolean') list.collapsed = false;
+    // Per-item actual time spent (excluding paused/resting periods). Added
+    // in May 2026 — default existing items to 0 so old lists keep working.
+    for (const it of list.items) {
+      if (typeof it.actualMs !== 'number') it.actualMs = 0;
+    }
   }
+}
+
+/* ===== Actual-time accounting =====
+   We track how long the user actually spent on each item, and the total
+   wall-clock time the list took (including breaks but excluding paused
+   gaps). Three pieces of state live on r (list.run):
+     itemStartTime   ms timestamp when the current item entered 'running'
+                     (cleared whenever it leaves running)
+     runStartedAt    ms timestamp when this run was first kicked off
+     pausedTotalMs   accumulator of all paused durations during this run
+     pauseStartedAt  ms timestamp of the current pause, if any
+   On completion, r.actualTotalMs = completedAt - runStartedAt - pausedTotalMs.
+   _todoCaptureItemDelta() adds the running interval to the current item
+   and clears itemStartTime; call it on every transition out of 'running'. */
+function _todoCaptureItemDelta(list, atMs) {
+  const r = list && list.run; if (!r) return;
+  if (typeof r.itemStartTime !== 'number') return;
+  const item = list.items[r.currentIdx];
+  if (item) {
+    const delta = Math.max(0, (atMs != null ? atMs : Date.now()) - r.itemStartTime);
+    item.actualMs = (item.actualMs || 0) + delta;
+  }
+  delete r.itemStartTime;
+}
+function _todoResetRunTotals(list) {
+  // Wipe accumulators — used when starting a fresh run from idle or done.
+  const r = list.run;
+  r.runStartedAt = Date.now();
+  r.pausedTotalMs = 0;
+  delete r.pauseStartedAt;
+  delete r.itemStartTime;
+  delete r.actualTotalMs;
+  for (const it of list.items) it.actualMs = 0;
+}
+function _todoFormatActual(ms) {
+  // Compact format: under an hour shows MM:SS; an hour+ shows H:MM:SS.
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 function todoCreateList() {
@@ -5366,7 +5486,7 @@ function todoUpdateTitle(listId, val) {
 
 function todoAddItem(listId) {
   const list = _todoFindList(listId); if (!list) return;
-  list.items.push({ id: uid(), name: '', mins: 25 });
+  list.items.push({ id: uid(), name: '', mins: 25, actualMs: 0 });
   save();
   renderTodoLists();
 }
@@ -5450,6 +5570,94 @@ function todoDragEnd(e) {
   _todoClearDropHints();
   _todoDragSrc = null;
 }
+/* Re-measure every todo textarea. Safe to call any time; bails on rows
+   that aren't laid out yet (scrollHeight 0). Called from renderTodoLists
+   after each render and from the tab-click handler when the focus view
+   becomes visible, so multi-line task names show at full height. */
+function _todoAutosizeAll() {
+  const host = document.getElementById('todoListsContainer');
+  if (!host) return;
+  host.querySelectorAll('.todo-item-name').forEach(ta => {
+    ta.style.height = 'auto';
+    const h = ta.scrollHeight;
+    if (h > 0) ta.style.height = h + 'px';
+  });
+}
+
+/* Toggle a list card between expanded and collapsed. Collapsed cards
+   show only their title in the head; everything else is hidden. Lists
+   auto-collapse when they finish; the user can also click the chevron
+   on any list to fold it manually. */
+function todoToggleCollapse(listId) {
+  const list = _todoFindList(listId); if (!list) return;
+  list.collapsed = !list.collapsed;
+  save();
+  renderTodoLists();
+}
+
+/* List-level drag-to-reorder. Drag is anchored to the grip element only
+   (the rest of the head stays clickable/editable). _todoListDragSrc
+   tracks the source list while a drag is in flight. */
+let _todoListDragSrc = null;
+function todoListDragStart(e) {
+  const grip = e.currentTarget;
+  const card = grip.closest('.todo-list-card');
+  if (!card) return;
+  _todoListDragSrc = { listId: grip.dataset.listId, card };
+  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', grip.dataset.listId); } catch (_) {}
+  // Highlight the source while it's flying.
+  setTimeout(() => card.classList.add('is-list-dragging'), 0);
+}
+function _todoListClearDropHints() {
+  document.querySelectorAll('.todo-list-card.list-drop-before, .todo-list-card.list-drop-after')
+    .forEach(el => el.classList.remove('list-drop-before', 'list-drop-after'));
+}
+function todoListDragOver(e) {
+  if (!_todoListDragSrc) return;
+  const card = e.currentTarget;
+  if (card === _todoListDragSrc.card) return; // ignore hover over self
+  e.preventDefault();
+  try { e.dataTransfer.dropEffect = 'move'; } catch (_) {}
+  const rect = card.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  _todoListClearDropHints();
+  card.classList.add(before ? 'list-drop-before' : 'list-drop-after');
+}
+function todoListDragLeave(e) {
+  e.currentTarget.classList.remove('list-drop-before', 'list-drop-after');
+}
+function todoListDrop(e) {
+  if (!_todoListDragSrc) return;
+  const card = e.currentTarget;
+  if (card === _todoListDragSrc.card) { _todoListClearDropHints(); return; }
+  e.preventDefault();
+  const rect = card.getBoundingClientRect();
+  const before = (e.clientY - rect.top) < rect.height / 2;
+  const fromId = _todoListDragSrc.listId;
+  const toId = card.dataset.listId;
+  todoReorderLists(fromId, toId, before);
+  _todoListClearDropHints();
+}
+function todoListDragEnd(e) {
+  const card = e.currentTarget.closest('.todo-list-card');
+  if (card) card.classList.remove('is-list-dragging');
+  _todoListClearDropHints();
+  _todoListDragSrc = null;
+}
+function todoReorderLists(fromId, toId, before) {
+  if (!Array.isArray(state.todoLists)) return;
+  const fromIdx = state.todoLists.findIndex(l => l.id === fromId);
+  const toIdxRaw = state.todoLists.findIndex(l => l.id === toId);
+  if (fromIdx < 0 || toIdxRaw < 0 || fromIdx === toIdxRaw) return;
+  let toIdx = before ? toIdxRaw : toIdxRaw + 1;
+  const [moved] = state.todoLists.splice(fromIdx, 1);
+  if (toIdx > fromIdx) toIdx -= 1; // account for removal shifting indices
+  toIdx = Math.max(0, Math.min(state.todoLists.length, toIdx));
+  state.todoLists.splice(toIdx, 0, moved);
+  save();
+  renderTodoLists();
+}
+
 function todoReorderItems(listId, fromIdx, toIdx) {
   const list = _todoFindList(listId); if (!list) return;
   if (fromIdx < 0 || fromIdx >= list.items.length) return;
@@ -5495,15 +5703,23 @@ function todoStart(listId) {
   const now = Date.now();
   if (r.state === 'paused' && typeof r.remainingMs === 'number') {
     // Resume from the exact remaining ms captured when paused.
+    if (typeof r.pauseStartedAt === 'number') {
+      r.pausedTotalMs = (r.pausedTotalMs || 0) + (now - r.pauseStartedAt);
+      delete r.pauseStartedAt;
+    }
     r.state = 'running';
     r.endTime = now + r.remainingMs;
+    r.itemStartTime = now;
     delete r.remainingMs;
   } else if (r.state === 'done') {
-    // Restart the whole list from scratch.
+    // Restart the whole list from scratch — wipe accumulators too.
+    _todoResetRunTotals(list);
     r.state = 'running';
     r.currentIdx = 0;
     r.endTime = now + (list.items[0].mins || 25) * 60000;
+    r.itemStartTime = now;
     delete r.completedAt;
+    list.collapsed = false;
   } else if (r.state === 'idle' || r.state === 'resting') {
     // Start (or resume from rest). If we're mid-rest, resume the work
     // item from exactly where it was paused — workRemainingMs holds
@@ -5513,10 +5729,14 @@ function todoStart(listId) {
     if (wasResting) {
       delete r.restEndTime;
       delete r.workRemainingMs;
+    } else {
+      // Fresh run from idle — init totals.
+      _todoResetRunTotals(list);
     }
     r.state = 'running';
     if (typeof r.currentIdx !== 'number' || r.currentIdx >= list.items.length) r.currentIdx = 0;
     r.endTime = now + (stashed != null ? stashed : (list.items[r.currentIdx].mins || 25) * 60000);
+    r.itemStartTime = now;
   }
   save();
   _ensureTodoTicker();
@@ -5528,14 +5748,17 @@ function todoPause(listId) {
   const r = list.run;
   const now = Date.now();
   if (r.state === 'running') {
+    _todoCaptureItemDelta(list, now);
     r.remainingMs = Math.max(0, r.endTime - now);
     r.state = 'paused';
+    r.pauseStartedAt = now;
     delete r.endTime;
     save();
     renderTodoLists();
   } else if (r.state === 'resting') {
     // Pausing during rest just cancels the rest — work stays where it was.
     r.state = 'paused';
+    r.pauseStartedAt = now;
     // Restore the work remaining we stashed before rest started.
     r.remainingMs = r.workRemainingMs || ((list.items[r.currentIdx]?.mins || 25) * 60000);
     delete r.restEndTime;
@@ -5557,8 +5780,12 @@ function todoReset(listId) {
   const fullMs = (item.mins || 25) * 60000;
   const now = Date.now();
   if (r.state === 'running') {
+    // Capture whatever's been spent so far on this attempt before restarting.
+    _todoCaptureItemDelta(list, now);
     r.endTime = now + fullMs;
+    r.itemStartTime = now;
   } else if (r.state === 'paused') {
+    // We're not running, so no item delta to capture (already captured at pause).
     r.remainingMs = fullMs;
   } else if (r.state === 'resting') {
     // Cancel rest and resume a fresh full countdown on the work item.
@@ -5566,6 +5793,7 @@ function todoReset(listId) {
     delete r.workRemainingMs;
     r.state = 'running';
     r.endTime = now + fullMs;
+    r.itemStartTime = now;
   } else {
     return;
   }
@@ -5582,6 +5810,8 @@ function todoRest(listId) {
     toast(T('先启动清单再休息~', 'Start the list before resting ~'), '🌿');
     return;
   }
+  // Work has stopped — capture the per-item delta before flipping state.
+  _todoCaptureItemDelta(list, now);
   // Stash how much of the current work item is left so we can resume it
   // exactly where we paused once rest finishes.
   r.workRemainingMs = Math.max(0, r.endTime - now);
@@ -5613,12 +5843,23 @@ function _todoTick() {
       // Advance through completed items in a loop in case multiple expired
       // while the tab was hidden / page was closed.
       while (r.state === 'running' && now >= r.endTime) {
+        // Item finished naturally (or via early-complete which sets endTime
+        // to now-1) — freeze its actual time as of the end-of-countdown.
+        const itemEndedAt = r.endTime;
+        _todoCaptureItemDelta(list, itemEndedAt);
         const nextIdx = r.currentIdx + 1;
         if (nextIdx >= list.items.length) {
           // Whole list completed — award XP + stars, celebrate.
           r.state = 'done';
           r.currentIdx = list.items.length;
-          r.completedAt = now;
+          r.completedAt = itemEndedAt;
+          // Total wall-clock time including rests but excluding paused gaps.
+          if (typeof r.runStartedAt === 'number') {
+            r.actualTotalMs = Math.max(0, itemEndedAt - r.runStartedAt - (r.pausedTotalMs || 0));
+          }
+          // Auto-collapse finished lists so the panel stays tidy. User can
+          // expand it again via the chevron.
+          list.collapsed = true;
           if (typeof state.pet === 'object') state.pet.xp = (state.pet.xp || 0) + TODO_COMPLETE_XP;
           state.stars = (state.stars || 0) + TODO_COMPLETE_STARS;
           state.dims = state.dims || {};
@@ -5634,7 +5875,8 @@ function _todoTick() {
           // Slide to the next item, set its end time relative to the old end
           // (so cumulative drift doesn't matter when multiple items expire).
           r.currentIdx = nextIdx;
-          r.endTime = r.endTime + (list.items[nextIdx].mins || 25) * 60000;
+          r.endTime = itemEndedAt + (list.items[nextIdx].mins || 25) * 60000;
+          r.itemStartTime = itemEndedAt;
           toast(T(`下一项：${list.items[nextIdx].name || '未命名任务'}`,
                   `Next up: ${list.items[nextIdx].name || 'Untitled task'}`), '⏭');
           _todoPlayChime('item');
@@ -5648,6 +5890,7 @@ function _todoTick() {
         // Rest complete — resume the work item from where we paused it.
         r.state = 'running';
         r.endTime = now + (r.workRemainingMs || (list.items[r.currentIdx]?.mins || 25) * 60000);
+        r.itemStartTime = now;
         delete r.restEndTime;
         delete r.workRemainingMs;
         toast(T('休息够啦~ 继续吧 🌿', 'Rest done ~ keep going 🌿'), '☕');
@@ -5705,8 +5948,17 @@ function _todoUpdateTimes() {
       timeEl.textContent = _todoFormatMMSS(r.remainingMs || 0);
       textEl.textContent = T('已暂停 · 点启动继续', 'Paused · tap Start to resume');
     } else if (r.state === 'done') {
-      timeEl.textContent = '✓';
-      textEl.textContent = T('清单已完成 🌷', 'List complete 🌷');
+      // Show the actual total time the list took, including rests but
+      // excluding any paused gaps. Falls back to the bare check mark for
+      // legacy runs that didn't track it.
+      if (typeof r.actualTotalMs === 'number') {
+        timeEl.textContent = _todoFormatActual(r.actualTotalMs);
+        textEl.textContent = T('清单已完成 🌷 · 实际用时（含休息）',
+                                'List complete 🌷 · Actual time (incl. rests)');
+      } else {
+        timeEl.textContent = '✓';
+        textEl.textContent = T('清单已完成 🌷', 'List complete 🌷');
+      }
     } else {
       // idle
       const total = (list.items || []).reduce((s, it) => s + (it.mins || 0), 0);
@@ -5755,6 +6007,15 @@ function renderTodoLists() {
       if (isDone) cls.push('is-done');
       if (canDrag) cls.push('is-draggable');
       const marker = isDone ? '✓' : (isCurrent ? '▸' : (idx + 1));
+      // Show "用时 MM:SS" once the user has actually accrued time on this
+      // item — helps people see how long each task actually took vs. its
+      // configured budget. Hidden when zero so idle lists stay clean.
+      const actualBadge = (it.actualMs && it.actualMs > 500)
+        ? `<span class="todo-item-actual" title="${T('实际用时','Time actually spent')}">${T('用时','spent')} ${_todoFormatActual(it.actualMs)}</span>`
+        : '';
+      // The numbered marker doubles as the grab handle: mousedown on it
+      // flips draggable on so the textarea/input inside the row keep their
+      // normal click/select behaviour the rest of the time.
       const markerAttrs = canDrag
         ? ` title="${T('按住拖动以重新排序','Hold and drag to reorder')}" onmousedown="this.closest('.todo-item-row').setAttribute('draggable','true')" onmouseup="this.closest('.todo-item-row').setAttribute('draggable','false')"`
         : '';
@@ -5769,16 +6030,33 @@ function renderTodoLists() {
           <input class="todo-item-mins" type="number" min="1" max="240" step="1" value="${it.mins}"
                  oninput="todoUpdateItem('${list.id}','${it.id}','mins', this.value)"/>
           <span class="todo-item-unit">${T('分钟','min')}</span>
+          ${actualBadge}
           ${isCurrent ? `<button class="todo-item-check" onclick="todoCompleteItem('${list.id}','${it.id}')" title="${T('提早完成,进入下一项','Finish early, next item')}">${T('完成 ✓','Done ✓')}</button>` : ''}
           <button class="todo-item-trash" onclick="todoDeleteItem('${list.id}','${it.id}')" title="${T('删除','Delete')}">✕</button>
         </div>`;
     }).join('');
+    // When the list is done, surface the total wall-clock time (work + rest,
+    // minus paused gaps) inline in the head so it stays visible while the
+    // card is collapsed. Falls back gracefully if older runs don't have the
+    // accumulator set.
+    const doneSummary = (r.state === 'done' && typeof r.actualTotalMs === 'number')
+      ? `<span class="todo-list-done-summary" title="${T('实际用时（含休息）','Actual total time (incl. rests)')}">✓ ${T('用时','spent')} ${_todoFormatActual(r.actualTotalMs)}</span>`
+      : '';
     parts.push(`
-      <div class="todo-list-card ${stateClass}" data-list-id="${list.id}">
+      <div class="todo-list-card ${stateClass}${list.collapsed ? ' is-collapsed' : ''}" data-list-id="${list.id}" data-list-idx="${state.todoLists.indexOf(list)}"
+           ondragover="todoListDragOver(event)" ondragleave="todoListDragLeave(event)" ondrop="todoListDrop(event)">
         <div class="todo-list-head">
+          <span class="todo-list-grip" title="${T('拖动排序清单','Drag to reorder list')}"
+                draggable="true" data-list-id="${list.id}"
+                ondragstart="todoListDragStart(event)" ondragend="todoListDragEnd(event)"
+                aria-hidden="true">⋮⋮</span>
+          <button class="todo-list-toggle" onclick="todoToggleCollapse('${list.id}')"
+                  title="${list.collapsed ? T('展开','Expand') : T('折叠','Collapse')}"
+                  aria-label="${list.collapsed ? T('展开','Expand') : T('折叠','Collapse')}">▸</button>
           <input class="todo-list-title" value="${escapeHtml(list.title)}"
                  oninput="todoUpdateTitle('${list.id}', this.value)"
                  placeholder="${T('清单名字','List name')}"/>
+          ${doneSummary}
           <button class="todo-list-trash" onclick="todoDeleteList('${list.id}')" title="${T('删除清单','Delete list')}">🗑</button>
         </div>
         <div class="todo-status-bar">
@@ -5798,10 +6076,10 @@ function renderTodoLists() {
   host.innerHTML = parts.join('');
   // Auto-size each item-name textarea to fit existing content (so saved
   // multi-line items render at full height on first paint, not 1 row).
-  host.querySelectorAll('.todo-item-name').forEach(ta => {
-    ta.style.height = 'auto';
-    ta.style.height = ta.scrollHeight + 'px';
-  });
+  // If the parent view is hidden at first render (display:none on .view),
+  // scrollHeight is 0 and textareas collapse — _todoAutosizeAll() is also
+  // called on tab-switch to re-measure once the view becomes visible.
+  _todoAutosizeAll();
   _todoUpdateTimes();
   // If anything was already running when the page loaded, restart the ticker.
   if (state.todoLists.some(l => l.run && (l.run.state === 'running' || l.run.state === 'resting'))) {
@@ -7984,6 +8262,13 @@ document.querySelectorAll('.tab').forEach(t => {
     t.classList.add('active');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + t.dataset.view).classList.add('active');
+    // The todo-list textareas auto-size to scrollHeight, which is 0 while
+    // their parent view is display:none. Re-measure now that the view is
+    // visible so saved multi-line task names render at full height instead
+    // of collapsing to nothing on first switch-in.
+    if (t.dataset.view === 'focus' && typeof _todoAutosizeAll === 'function') {
+      requestAnimationFrame(_todoAutosizeAll);
+    }
   });
 });
 
